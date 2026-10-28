@@ -346,7 +346,7 @@ struct MainDashboardView: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(Color(white: 0.45))
                     .padding(.trailing, 6)
-                Text(String(format: "%.1fg (%.0f%%)", grams, (grams > 0 ? ratio * 100 : 0)))
+                Text(verbatim: String(format: "%.1fg (%.0f%%)", grams, (grams > 0 ? ratio * 100.0 : 0.0)))
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundColor(.white)
             }

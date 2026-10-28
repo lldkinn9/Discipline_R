@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var apiKeyInput: String = ""
     @State private var showSavedToast: Bool = false
     @State private var showingPrivacyPolicySheet: Bool = false
+    @State private var showingResetConfirmation: Bool = false
+    @State private var showResetDoneToast: Bool = false
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -254,6 +256,42 @@ struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundColor(Color(white: 0.5))
                     .lineSpacing(4)
+                
+                // 科学的・公的根拠の公式Webリンク (Guideline 1.4.1 出典明示要件対応)
+                VStack(alignment: .leading, spacing: 8) {
+                    if let mhlwURL = URL(string: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/eiyou/syokuji_kijyun.html") {
+                        Link(destination: mhlwURL) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 10))
+                                Text("参考基準1: 厚生労働省「日本人の食事摂取基準」")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .underline()
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(Color(white: 0.75))
+                        }
+                    }
+                    
+                    if let whoURL = URL(string: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet") {
+                        Link(destination: whoURL) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 10))
+                                Text("参考基準2: WHO (世界保健機関) Healthy Diet")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .underline()
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(Color(white: 0.75))
+                        }
+                    }
+                }
+                .padding(.top, 4)
             }
             .padding(18)
             .background(Color(white: 0.06))
@@ -348,6 +386,34 @@ struct SettingsView: View {
                         .padding(.vertical, 6)
                     }
                 }
+                
+                Divider().background(Color(white: 0.15))
+                
+                // 端末内データの全消去・リセット (Guideline 5.1.1 データ削除対応)
+                Button(action: {
+                    HapticManager.shared.impact(style: .medium)
+                    showingResetConfirmation = true
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(white: 0.7))
+                        Text(showResetDoneToast ? "端末内データをすべて初期化しました ✓" : "アプリ内の保存データ（習慣・APIキー・目標値）を初期化")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(white: 0.7))
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .alert("データの初期化", isPresented: $showingResetConfirmation) {
+                    Button("キャンセル", role: .cancel) {}
+                    Button("すべて初期化する", role: .destructive) {
+                        resetAllLocalData()
+                    }
+                } message: {
+                    Text("アプリ内に保存されている習慣リスト・達成履歴・APIキー・目標設定値をすべて消去し、初期状態に戻します。（Appleヘルスケア内のデータは消去されません）")
+                }
             }
             .padding(18)
             .background(Color(white: 0.06))
@@ -356,6 +422,22 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
+        }
+    }
+    
+    private func resetAllLocalData() {
+        HapticManager.shared.notification(type: .success)
+        apiKeyInput = ""
+        geminiClient.apiKey = ""
+        HabitManager.shared.habits = []
+        HabitManager.shared.saveHabits()
+        targetCalories = 2200.0
+        targetSteps = 8000
+        targetWeight = 68.0
+        targetBodyFat = 15.0
+        showResetDoneToast = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            showResetDoneToast = false
         }
     }
 }

@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.4`
+- **Version:** `v1.0.5`
 - **Last Updated:** `2026-10-28`
-- **Phase:** App Store 公開版（Release版）プライバシーポリシー＆サポート導線組み込み完了
+- **Phase:** App Store 審査提出前・全体総点検＆コンプライアンス強化完了
 
 ---
 
@@ -55,6 +55,13 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.5` (2026-10-28)
+- **App Store 審査提出に向けたプロジェクト全体総点検・コンプライアンス強化:**
+  - **Guideline 1.4.1（医学・栄養根拠の出典リンク明示）:** `AICoachView.swift` および `SettingsView.swift` に、厚生労働省「日本人の食事摂取基準」および WHO（世界保健機関）Healthy Diet の公式Webサイトへの直接参照リンク（`Link`）を設置。
+  - **Guideline 5.1.1 / 5.1.2（AIデータ送信の透明性＆端末内データ初期化機能）:** AIアドバイザー利用時に当日の集計値が Google Gemini API へ送信される旨を明記し、`SettingsView.swift` に端末内の保存データ（習慣・APIキー・目標値）をワンタップで全消去できる初期化機能を実装。
+  - **暗号化輸出規制（Export Compliance）自動免除設定:** `project.pbxproj` に `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` を追加し、App Store Connect アップロード時の暗号化確認ダイアログを自動スキップ化。
+  - **コンソールフォーマット警告の解消:** `MainDashboardView.swift` のPFC比率表示を `Text(verbatim:)` に修正。
+
 ### `v1.0.4` (2026-10-28)
 - **設定画面（`SettingsView.swift`）へのプライバシーポリシー＆サポート導線追加 (Guideline 5.1.1 & 5.1.3 対応):**
   - `SETTINGS` 画面下部に `PRIVACY POLICY & SUPPORT` セクションを新設。

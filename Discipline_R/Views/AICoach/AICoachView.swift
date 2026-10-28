@@ -124,9 +124,38 @@ struct AICoachView: View {
                 .cornerRadius(8)
             }
             
-            Text("※本機能は一般的な生活習慣・栄養管理のセルフチェックを目的としており、医師による医学的助言ではありません。")
+            Text("※本機能は一般的な生活習慣・栄養管理のセルフチェックを目的としており、医師による医学的助言ではありません。実行時はご自身のAPIキーを用いて当日の集計数値が Google Gemini API へ送信されます。")
                 .font(.system(size: 10))
                 .foregroundColor(Color(white: 0.45))
+                .lineSpacing(3)
+            
+            // 栄養基準の公式出典リンク（Guideline 1.4.1 対策）
+            HStack(spacing: 12) {
+                if let mhlwURL = URL(string: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/eiyou/syokuji_kijyun.html") {
+                    Link(destination: mhlwURL) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "book.closed")
+                                .font(.system(size: 9))
+                            Text("出典: 厚生労働省「日本人の食事摂取基準」")
+                                .font(.system(size: 9, weight: .medium))
+                                .underline()
+                        }
+                        .foregroundColor(Color(white: 0.55))
+                    }
+                }
+                if let whoURL = URL(string: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet") {
+                    Link(destination: whoURL) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 9))
+                            Text("WHO Healthy Diet")
+                                .font(.system(size: 9, weight: .medium))
+                                .underline()
+                        }
+                        .foregroundColor(Color(white: 0.55))
+                    }
+                }
+            }
         }
         .padding(20)
         .background(Color(white: 0.06))
