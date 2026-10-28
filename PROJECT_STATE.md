@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.2`
+- **Version:** `v1.0.3`
 - **Last Updated:** `2026-10-28`
-- **Phase:** App Store 公開版（Release版）リファクタリング・アセット構築完了 & Xcodeビルド検証済み
+- **Phase:** App Store 公開版（Release版）シミュレータ動作確認済み・プロジェクト設定最適化完了
 
 ---
 
@@ -55,6 +55,12 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.3` (2026-10-28)
+- **Xcode プロジェクト設定（`project.pbxproj`）のリリース向け最適化:**
+  - ホーム画面およびヘルスケア権限ダイアログの表示名（`CFBundleDisplayName`）を `Discipline_R` から `Discipline` に確定。
+  - アプリカテゴリ（`LSApplicationCategoryType`）を `Healthcare & Fitness` に設定。
+  - iPhoneの画面向きを縦画面固定（`UIInterfaceOrientationPortrait`）に設定し、横回転によるレイアウト崩れを防止（変更ファイル: `Discipline_R.xcodeproj/project.pbxproj`）。
+
 ### `v1.0.2` (2026-10-28)
 - **Xcode 16 ビルド修正 (`UIKit` 明示インポート追加):**
   - `HabitManager.swift` 等において `UIImpactFeedbackGenerator.FeedbackStyle` (`.light`) および `UINotificationFeedbackGenerator.FeedbackType` (`.success`) を参照する際の `import UIKit` 欠落を修正（変更ファイル: `HabitManager.swift`, `DisciplineApp.swift`, `MainDashboardView.swift`, `HabitTrackerSection.swift`, `CalendarView.swift`, `AICoachView.swift`, `SettingsView.swift`）。
