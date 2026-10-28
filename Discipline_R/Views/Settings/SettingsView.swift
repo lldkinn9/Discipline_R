@@ -11,6 +11,7 @@ struct SettingsView: View {
     
     @State private var apiKeyInput: String = ""
     @State private var showSavedToast: Bool = false
+    @State private var showingPrivacyPolicySheet: Bool = false
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -26,6 +27,9 @@ struct SettingsView: View {
                 // 3. 医療免責事項 (Guideline 1.4.1 対応)
                 medicalDisclaimerSection()
                 
+                // 4. プライバシーポリシー & サポート (Guideline 5.1.1 & 5.1.3 対応)
+                privacyAndSupportSection()
+                
                 Spacer(minLength: 40)
             }
             .padding(.horizontal, 20)
@@ -34,6 +38,9 @@ struct SettingsView: View {
         .background(Color.black.ignoresSafeArea())
         .onAppear {
             apiKeyInput = geminiClient.apiKey
+        }
+        .sheet(isPresented: $showingPrivacyPolicySheet) {
+            PrivacyPolicySheetView()
         }
     }
     
@@ -256,6 +263,161 @@ struct SettingsView: View {
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
         }
+    }
+    
+    // MARK: - 4. プライバシーポリシー & サポートセクション (Guideline 5.1.1 & 5.1.3 対応)
+    private func privacyAndSupportSection() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(white: 0.5))
+                Text("PRIVACY POLICY & SUPPORT")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(2)
+                    .foregroundColor(Color(white: 0.5))
+            }
+            
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Apple ヘルスケア（HealthKit）から取得した健康データや登録した習慣・APIキーはすべてお使いの端末内にのみ保存され、開発者のサーバーや第三者へ送信・収集・販売されることは一切ありません。")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(white: 0.65))
+                    .lineSpacing(4)
+                
+                Divider().background(Color(white: 0.15))
+                
+                // アプリ内モーダルでプライバシーポリシー全文を確認
+                Button(action: {
+                    HapticManager.shared.selection()
+                    showingPrivacyPolicySheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                        Text("プライバシーポリシー（アプリ内で全文を表示）")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(white: 0.4))
+                    }
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Divider().background(Color(white: 0.15))
+                
+                // Web版 プライバシーポリシーURL (GitHub Pages)
+                if let privacyURL = URL(string: "https://lldkinn9.github.io/Discipline_R/privacy.html") {
+                    Link(destination: privacyURL) {
+                        HStack {
+                            Image(systemName: "safari")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            Text("プライバシーポリシー（Webページを開く）")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(white: 0.4))
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
+                
+                Divider().background(Color(white: 0.15))
+                
+                // Web版 サポートURL (GitHub Pages)
+                if let supportURL = URL(string: "https://lldkinn9.github.io/Discipline_R/") {
+                    Link(destination: supportURL) {
+                        HStack {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            Text("サポートページ（Webページを開く）")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(white: 0.4))
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
+            }
+            .padding(18)
+            .background(Color(white: 0.06))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - アプリ内プライバシーポリシー全文表示シート (Guideline 5.1.1 & 5.1.3 完全準拠)
+struct PrivacyPolicySheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    policyCard(
+                        title: "1. Apple HealthKit（ヘルスケア）データの取り扱い",
+                        bodyText: "本アプリは、ユーザーの明示的な許可を得た上で、Apple HealthKit から以下のデータを読み取ります：\n・歩数（Step Count）\n・アクティブエネルギーおよび安静時消費エネルギー（Active / Basal Energy Burned）\n・摂取エネルギーおよび主要栄養素（Dietary Energy, Protein, Fat, Carbohydrates）\n・体重・体脂肪率（Body Mass, Body Fat Percentage）\n\nこれらのデータは端末内でのエネルギー収支・PFCバランスの表示、ウィジェット表示、およびユーザーが任意で実行するAIアドバイザー機能での振り返りにのみ使用されます。開発者のサーバーへ収集・保存されることは一切なく、広告目的や第三者への販売・提供に使用されることも一切ありません。"
+                    )
+                    
+                    policyCard(
+                        title: "2. 習慣データおよびAPIキーの保存について",
+                        bodyText: "登録された習慣データ、目標設定値、およびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ安全に保存されます。\n\nAIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日の集計数値が Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。"
+                    )
+                    
+                    policyCard(
+                        title: "3. 医療免責事項（Medical Disclaimer）",
+                        bodyText: "本アプリおよびAIアドバイザー機能は、医師や医療従事者による医学的診断・助言・治療を提供するものではありません。日々の生活習慣および栄養管理のセルフチェックを目的としています。体調に異変がある場合は必ず医師にご相談ください。"
+                    )
+                }
+                .padding(20)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("PRIVACY POLICY")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("閉じる") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+    
+    private func policyCard(title: String, bodyText: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+            Text(bodyText)
+                .font(.system(size: 12))
+                .foregroundColor(Color(white: 0.78))
+                .lineSpacing(5)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
     }
 }
 

@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.3`
+- **Version:** `v1.0.4`
 - **Last Updated:** `2026-10-28`
-- **Phase:** App Store 公開版（Release版）シミュレータ動作確認済み・プロジェクト設定最適化完了
+- **Phase:** App Store 公開版（Release版）プライバシーポリシー＆サポート導線組み込み完了
 
 ---
 
@@ -55,6 +55,11 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.4` (2026-10-28)
+- **設定画面（`SettingsView.swift`）へのプライバシーポリシー＆サポート導線追加 (Guideline 5.1.1 & 5.1.3 対応):**
+  - `SETTINGS` 画面下部に `PRIVACY POLICY & SUPPORT` セクションを新設。
+  - アプリ内モーダル（`PrivacyPolicySheetView`）によるプライバシーポリシー全文表示、および GitHub Pages で公開した Web版プライバシーポリシー（`https://lldkinn9.github.io/Discipline_R/privacy.html`）・サポートページ（`https://lldkinn9.github.io/Discipline_R/`）への直接リンクを実装（変更ファイル: `Discipline_R/Views/Settings/SettingsView.swift`）。
+
 ### `v1.0.3` (2026-10-28)
 - **Xcode プロジェクト設定（`project.pbxproj`）のリリース向け最適化:**
   - ホーム画面およびヘルスケア権限ダイアログの表示名（`CFBundleDisplayName`）を `Discipline_R` から `Discipline` に確定。
