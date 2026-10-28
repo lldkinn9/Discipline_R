@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.1`
+- **Version:** `v1.0.2`
 - **Last Updated:** `2026-10-28`
-- **Phase:** App Store 公開版（Release版）リファクタリング・アセット構築完了
+- **Phase:** App Store 公開版（Release版）リファクタリング・アセット構築完了 & Xcodeビルド検証済み
 
 ---
 
@@ -55,6 +55,10 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.2` (2026-10-28)
+- **Xcode 16 ビルド修正 (`UIKit` 明示インポート追加):**
+  - `HabitManager.swift` 等において `UIImpactFeedbackGenerator.FeedbackStyle` (`.light`) および `UINotificationFeedbackGenerator.FeedbackType` (`.success`) を参照する際の `import UIKit` 欠落を修正（変更ファイル: `HabitManager.swift`, `DisciplineApp.swift`, `MainDashboardView.swift`, `HabitTrackerSection.swift`, `CalendarView.swift`, `AICoachView.swift`, `SettingsView.swift`）。
+
 ### `v1.0.1` (2026-10-28)
 - **App Store 審査基準（Guideline 1.4.1, 2.1, 3.1.1, 5.1.3）適合リファクタリング & 公開版構築:**
   1. **健康アプローチの一般化 (Guideline 1.4.1):** ケトジェニック・分子栄養学ルールを撤廃し、厚生労働省・WHO推奨の一般バランス栄養（P 13〜20%, F 20〜30%, C 50〜65%）によるセルフモニタリングへ刷新。

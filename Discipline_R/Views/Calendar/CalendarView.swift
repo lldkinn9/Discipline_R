@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct CalendarView: View {
     @EnvironmentObject var healthKit: HealthKitManager

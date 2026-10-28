@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HabitTrackerSection: View {
     @ObservedObject var habitManager = HabitManager.shared
