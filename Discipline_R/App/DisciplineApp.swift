@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+#if canImport(GoogleMobileAds)
+import GoogleMobileAds
+#endif
 
 @main
 struct DisciplineApp: App {
@@ -9,6 +12,11 @@ struct DisciplineApp: App {
     init() {
         // Dark Mode 強制 & TabBar のすりガラス設定
         UITabBar.appearance().isHidden = true
+        
+        // Google Mobile Ads (AdMob) SDK の初期化
+        #if canImport(GoogleMobileAds)
+        GADMobileAds.sharedInstance().start(completionHandler: nil)
+        #endif
     }
     
     var body: some Scene {

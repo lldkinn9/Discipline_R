@@ -8,16 +8,21 @@ import GoogleMobileAds
 struct AdBannerContainerView: View {
     @ObservedObject var storeManager = StoreManager.shared
     var onTapUpgrade: (() -> Void)? = nil
+    @State private var isAdMobLoaded: Bool = false
     
     var body: some View {
         if !storeManager.isPro {
-            VStack(spacing: 0) {
+            ZStack {
+                // AdMob広告がロード完了するまでの間（またはオフライン時）は内蔵Pro案内バナーを表示し、空白を作らない
+                if !isAdMobLoaded {
+                    FallbackBannerView(onTapUpgrade: onTapUpgrade)
+                        .frame(height: 50)
+                }
+                
                 #if canImport(GoogleMobileAds)
-                AdMobBannerRepresentable()
+                AdMobBannerRepresentable(isAdLoaded: $isAdMobLoaded)
                     .frame(height: 50)
-                #else
-                FallbackBannerView(onTapUpgrade: onTapUpgrade)
-                    .frame(height: 50)
+                    .opacity(isAdMobLoaded ? 1.0 : 0.0)
                 #endif
             }
             .frame(maxWidth: .infinity)
@@ -37,35 +42,75 @@ struct AdBannerContainerView: View {
 // MARK: - GoogleMobileAds (AdMob) SDK 導入時のネイティブバナーView
 #if canImport(GoogleMobileAds)
 struct AdMobBannerRepresentable: UIViewRepresentable {
-    // Info.plist または環境変数から本番広告ユニットIDを取得（未設定・DEBUG時はGoogle公式テストバナーIDを使用）
+    @Binding var isAdLoaded: Bool
+    
+    // DEBUGビルド（開発・シミュレータ）ではポリシー違反防止＆即時表示のためGoogle公式テストIDを使用し、
+    // Releaseビルド（本番アーカイブ）では Info.plist の本番広告ユニットID (ca-app-pub-1148610655574304/3245126264) を使用する
     private var adUnitID: String {
         #if DEBUG
         return "ca-app-pub-3940256099942544/2435281174"
         #else
         if let plistID = Bundle.main.object(forInfoDictionaryKey: "GADBannerAdUnitID") as? String,
            !plistID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return plistID
+            return plistID.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return "ca-app-pub-3940256099942544/2435281174"
+        return "ca-app-pub-1148610655574304/3245126264"
         #endif
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
     }
     
     func makeUIView(context: Context) -> GADBannerView {
         let banner = GADBannerView(adSize: GADAdSizeBanner)
         banner.adUnitID = adUnitID
+        banner.delegate = context.coordinator
+        banner.backgroundColor = .clear
+        
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first?.rootViewController {
             banner.rootViewController = rootVC
         }
-        banner.load(GADRequest())
+        
+        // Guideline 5.1.3(ii) ヘルスケアデータのプライバシー保護準拠：非パーソナライズド広告リクエスト (npa=1)
+        let request = GADRequest()
+        let extras = GADExtras()
+        extras.additionalParameters = ["npa": "1"]
+        request.register(extras)
+        
+        banner.load(request)
         return banner
     }
     
     func updateUIView(_ uiView: GADBannerView, context: Context) {}
+    
+    final class Coordinator: NSObject, GADBannerViewDelegate {
+        var parent: AdMobBannerRepresentable
+        
+        init(_ parent: AdMobBannerRepresentable) {
+            self.parent = parent
+        }
+        
+        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    self.parent.isAdLoaded = true
+                }
+            }
+        }
+        
+        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+            print("ℹ️ AdMob バナー取得待機中（フォールバックバナー表示継続）: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.parent.isAdLoaded = false
+            }
+        }
+    }
 }
 #endif
 
-// MARK: - 標準内蔵バナー枠（AdMob SDK未導入時やオフライン時でも崩れず表示される50ptバナー）
+// MARK: - 内蔵バナー（AdMobロード完了前・オフライン時でも空白を作らずPro版へ誘導する50ptバナー）
 struct FallbackBannerView: View {
     var onTapUpgrade: (() -> Void)?
     
@@ -75,7 +120,6 @@ struct FallbackBannerView: View {
             onTapUpgrade?()
         }) {
             HStack(spacing: 10) {
-                // AD バッジ
                 Text("AD")
                     .font(.system(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(.black)
@@ -117,4 +161,3 @@ struct FallbackBannerView: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
-

@@ -10,6 +10,7 @@
 		4ACB80713091E4920044DADD /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACB80703091E4920044DADD /* WidgetKit.framework */; };
 		4ACB80733091E4920044DADD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACB80723091E4920044DADD /* SwiftUI.framework */; };
 		4ACB807B3091E4920044DADD /* DisciplineWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4ACB80753091E4920044DADD /* DisciplineWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4ACB80923091E4920044DADD /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 4ACB80913091E4920044DADD /* GoogleMobileAds */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +61,7 @@
 		4ACB80553091E4900044DADD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4ACB80923091E4920044DADD /* GoogleMobileAds in Frameworks */,
 			);
 		};
 		4ACB80773091E4920044DADD /* Frameworks */ = {
@@ -121,6 +123,9 @@
 				4ACB805A3091E4900044DADD /* Discipline_R */,
 			);
 			name = Discipline_R;
+			packageProductDependencies = (
+				4ACB80913091E4920044DADD /* GoogleMobileAds */,
+			);
 			productName = Discipline_R;
 			productReference = 4ACB80583091E4900044DADD /* Discipline_R.app */;
 			productType = "com.apple.product-type.application";
@@ -172,6 +177,9 @@
 			);
 			mainGroup = 4ACB804F3091E4900044DADD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4ACB80903091E4920044DADD /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4ACB80593091E4900044DADD /* Products */;
 			projectDirPath = "";
@@ -350,7 +358,10 @@
 				DEVELOPMENT_TEAM = RGLDT2MHV9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DisciplineWidgetConfig/Discipline_R_Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Discipline;
+				INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-1148610655574304~6864807071";
+				INFOPLIST_KEY_GADBannerAdUnitID = "ca-app-pub-1148610655574304/3245126264";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・体重・体脂肪率を集計し、エネルギー収支や生活習慣の達成状況を可視化するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, weight, and body fat percentage) to display your daily calorie balance and habit tracking progress.";
@@ -367,6 +378,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lldkinn9.Discipline-R";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -395,7 +410,10 @@
 				DEVELOPMENT_TEAM = RGLDT2MHV9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DisciplineWidgetConfig/Discipline_R_Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Discipline;
+				INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-1148610655574304~6864807071";
+				INFOPLIST_KEY_GADBannerAdUnitID = "ca-app-pub-1148610655574304/3245126264";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・体重・体脂肪率を集計し、エネルギー収支や生活習慣の達成状況を可視化するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, weight, and body fat percentage) to display your daily calorie balance and habit tracking progress.";
@@ -412,6 +430,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lldkinn9.Discipline-R";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -527,6 +549,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4ACB80903091E4920044DADD /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4ACB80913091E4920044DADD /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4ACB80903091E4920044DADD /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4ACB80503091E4900044DADD /* Project object */;
 	validationLevel = 1;

@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.10`
+- **Version:** `v1.0.11`
 - **Last Updated:** `2026-10-28`
-- **Phase:** 収益化機能（画面下部バナー広告 ＆ ¥500 Pro版買い切りアップデート）実装完了
+- **Phase:** Google AdMob SDK (`GoogleMobileAds`) ＆ 本番アプリID・広告ユニットID 組み込み完了
 
 ---
 
@@ -55,6 +55,12 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.11` (2026-10-28)
+- **Google AdMob SDK (`GoogleMobileAds`) ＆ 本番アプリID・広告ユニットIDの完全統合:**
+  - `Discipline_R.xcodeproj/project.pbxproj`: Swift Package Manager 経由で `swift-package-manager-google-mobile-ads` (`GoogleMobileAds`) を自動解決・リンクする設定および `-ObjC` リンカフラグを追加。
+  - `DisciplineWidgetConfig/Discipline_R_Info.plist`: AdMob アプリID（`ca-app-pub-1148610655574304~6864807071`）、バナー広告ユニットID（`ca-app-pub-1148610655574304/3245126264`）、および Google 公式 `SKAdNetworkItems`（49件）を設定。
+  - `DisciplineApp.swift` & `AdBannerView.swift`: 起動時の `GADMobileAds.sharedInstance().start()` 初期化、Guideline 5.1.3(ii) 準拠の非パーソナライズド広告（`npa=1`）リクエスト、DEBUG時の公式テストバナー表示＆Releaseビルド時の本番ユニットID自動切り替えを実装。
+
 ### `v1.0.10` (2026-10-28)
 - **収益化機能（画面下部バナー広告 ＆ 設定画面からの ¥500 Pro版アップデート）の実装:**
   - `StoreManager.swift`: StoreKit 2 による非消耗型（買い切り）App内課金 `com.lldkinn9.DisciplineR.pro`（¥500）の購入・権利確認・トランザクション監視・購入復元（`restorePurchases()` / Guideline 3.1.1 必須要件）を実装。
