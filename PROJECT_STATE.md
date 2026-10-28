@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.9`
+- **Version:** `v1.0.10`
 - **Last Updated:** `2026-10-28`
-- **Phase:** Gemini API 多重フェールオーバー・models.list 動的モデル選定＆疎通診断実装完了
+- **Phase:** 収益化機能（画面下部バナー広告 ＆ ¥500 Pro版買い切りアップデート）実装完了
 
 ---
 
@@ -55,6 +55,13 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.10` (2026-10-28)
+- **収益化機能（画面下部バナー広告 ＆ 設定画面からの ¥500 Pro版アップデート）の実装:**
+  - `StoreManager.swift`: StoreKit 2 による非消耗型（買い切り）App内課金 `com.lldkinn9.DisciplineR.pro`（¥500）の購入・権利確認・トランザクション監視・購入復元（`restorePurchases()` / Guideline 3.1.1 必須要件）を実装。
+  - `AdBannerView.swift` & `DisciplineApp.swift`: 画面下部（リキッドカプセルTabBarの直上）に 50pt バナー広告枠（`AdBannerContainerView`：GoogleMobileAds SDK 自動連携 ＆ 内蔵フォールバックバナー対応）を配置し、Pro版購入時は即座に非表示化＆レイアウト余白を自動調整する仕組みを実装。
+  - `SettingsView.swift`: 設定画面最上部に `DISCIPLINE PRO (AD-FREE UPGRADE)` セクション（¥500 アップデートボタン、「購入を復元」ボタン、Pro有効バッジ、DEBUGテスト購入機能）を追加。
+  - `DisciplineStore.storekit`: Xcode ローカル課金テスト用の StoreKit 2 設定ファイルを追加。
+
 ### `v1.0.9` (2026-10-28)
 - **Gemini API 多重フェールオーバー・`models.list` 動的選定＆モデル診断の完全実装:**
   - `GeminiClient.swift`:

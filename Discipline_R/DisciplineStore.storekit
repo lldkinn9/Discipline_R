@@ -1,0 +1,89 @@
+{
+  "identifier" : "A1B2C3D4-E5F6-4789-9012-3456789ABCDE",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "500",
+      "familyShareable" : true,
+      "internalID" : "PRO_REMOVE_ADS_500",
+      "localizations" : [
+        {
+          "description" : "画面下部のバナー広告を永久に非表示にし、よりストイックに規律管理へ集中できるPro版へアップデートします（買い切り）。",
+          "displayName" : "Discipline Pro（広告非表示アップデート）",
+          "locale" : "ja"
+        },
+        {
+          "description" : "Permanently remove bottom banner ads and unlock the distraction-free Discipline Pro experience.",
+          "displayName" : "Discipline Pro (Remove Ads)",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.lldkinn9.DisciplineR.pro",
+      "referenceName" : "Discipline Pro (Remove Ads - 500 JPY)",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "Discipline_R",
+    "_developerTeamID" : "RGLDT2MHV9",
+    "_lastSynchronizedDate" : 783345600,
+    "_locale" : "ja",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

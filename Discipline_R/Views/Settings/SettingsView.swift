@@ -3,6 +3,7 @@ import UIKit
 
 struct SettingsView: View {
     @ObservedObject var geminiClient = GeminiClient.shared
+    @ObservedObject var storeManager = StoreManager.shared
     
     @AppStorage("targetCalories") private var targetCalories: Double = 2200.0
     @AppStorage("targetSteps") private var targetSteps: Int = 8000
@@ -19,6 +20,9 @@ struct SettingsView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 28) {
                 headerView()
+                
+                // 0. Discipline Pro アップデート（広告非表示・¥500 買い切り）
+                proUpgradeSection()
                 
                 // 1. Gemini API Key (BYOK 設定セクション)
                 apiKeySection()
@@ -61,6 +65,144 @@ struct SettingsView: View {
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.white)
         }
+    }
+    
+    // MARK: - 0. Discipline Pro アップデート（¥500 買い切り・広告非表示 / Guideline 3.1.1 準拠）
+    private func proUpgradeSection() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                    Text("DISCIPLINE PRO (AD-FREE UPGRADE)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(2)
+                        .foregroundColor(Color(white: 0.5))
+                }
+                Spacer()
+                Text(storeManager.isPro ? "PRO ACTIVE ✓" : "\(storeManager.displayPrice) / 買い切り")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(storeManager.isPro ? .black : .white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(storeManager.isPro ? Color.white : Color(white: 0.18))
+                    .cornerRadius(4)
+            }
+            
+            VStack(alignment: .leading, spacing: 14) {
+                if storeManager.isPro {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Discipline Pro アップデート適用済み")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("画面下部のバナー広告はすべて非表示になっています。ご購入ありがとうございます。")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(white: 0.6))
+                        }
+                    }
+                    
+                    #if DEBUG
+                    Button(action: {
+                        HapticManager.shared.selection()
+                        storeManager.resetDebugProStatus()
+                    }) {
+                        Text("[DEBUG検証用] 無料版（バナー広告表示）の状態に戻す")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(Color(white: 0.45))
+                            .underline()
+                    }
+                    .padding(.top, 2)
+                    #endif
+                } else {
+                    Text("画面下部のバナー広告を永久に非表示にし、より広い画面でストイックに規律管理へ集中できる Pro版 へアップデートできます（\(storeManager.displayPrice) 買い切り・月額課金なし）。")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(white: 0.7))
+                        .lineSpacing(4)
+                    
+                    HStack(spacing: 10) {
+                        // ¥500 購入ボタン
+                        Button(action: {
+                            HapticManager.shared.impact(style: .medium)
+                            Task {
+                                await storeManager.purchasePro()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                if storeManager.isPurchasing {
+                                    ProgressView()
+                                        .scaleEffect(0.75)
+                                        .tint(.black)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                Text("\(storeManager.displayPrice) で Pro版にアップデート")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                        }
+                        .disabled(storeManager.isPurchasing)
+                        
+                        // 購入を復元ボタン（App Store 審査 Guideline 3.1.1 必須）
+                        Button(action: {
+                            HapticManager.shared.impact(style: .light)
+                            Task {
+                                await storeManager.restorePurchases()
+                            }
+                        }) {
+                            Text("購入を復元")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 13)
+                                .background(Color(white: 0.16))
+                                .cornerRadius(8)
+                        }
+                        .disabled(storeManager.isPurchasing)
+                    }
+                }
+                
+                if let statusMsg = storeManager.statusMessage {
+                    Text(statusMsg)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                
+                if let errMsg = storeManager.errorMessage {
+                    Text(errMsg)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(white: 0.75))
+                }
+            }
+            .padding(18)
+            .background(Color(white: 0.06))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(storeManager.isPro ? Color.white.opacity(0.35) : Color.white.opacity(0.14), lineWidth: 1)
+            )
+        }
+        #if DEBUG
+        .alert("Discipline Pro（テスト購入確認）", isPresented: $storeManager.showDebugPurchaseSheet) {
+            Button("キャンセル", role: .cancel) {}
+            Button("購入する (¥500)") {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    storeManager.completeSimulatedDebugPurchase()
+                }
+            }
+        } message: {
+            Text("【DEBUG / シミュレータ検証モード】\nDiscipline Pro（広告非表示アップデート: ¥500 買い切り）の購入完了をシミュレートし、画面下部のバナー広告を非表示にしますか？\n（※本番リリース時は Apple StoreKit の標準決済シートが表示されます）")
+        }
+        #endif
     }
     
     // MARK: - 1. BYOK: Gemini API キー入力セクション（外部課金・購入リンクなし）
@@ -541,7 +683,12 @@ struct PrivacyPolicySheetView: View {
                     )
                     
                     policyCard(
-                        title: "3. 医療免責事項（Medical Disclaimer）",
+                        title: "3. 広告表示および Pro版アップデート（App内課金）について",
+                        bodyText: "無料版では画面下部にバナー広告が表示されます。設定画面より「Discipline Pro（¥500・買い切り）」へアップデートすることで、バナー広告を永久に非表示にすることができます。決済処理は Apple の StoreKit（App Store決済システム）を通じて安全に行われ、開発者がクレジットカード等の決済情報を直接取得・保持することはありません。"
+                    )
+                    
+                    policyCard(
+                        title: "4. 医療免責事項（Medical Disclaimer）",
                         bodyText: "本アプリおよびAIアドバイザー機能は、医師や医療従事者による医学的診断・助言・治療を提供するものではありません。日々の生活習慣および栄養管理のセルフチェックを目的としています。体調に異変がある場合は必ず医師にご相談ください。"
                     )
                 }
