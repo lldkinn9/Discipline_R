@@ -183,6 +183,7 @@ final class HealthKitManager: ObservableObject {
                 item.activeBurned = v
                 self.dailySummaries[k] = item
             }
+            self.syncWidget()
         }
         fetchDailyCollection(for: .basalEnergyBurned, unit: .kilocalorie(), start: startDate, end: endOfToday) { [weak self] dict in
             guard let self = self else { return }
@@ -191,6 +192,7 @@ final class HealthKitManager: ObservableObject {
                 item.basalBurned = v
                 self.dailySummaries[k] = item
             }
+            self.syncWidget()
         }
         fetchDailyCollection(for: .dietaryEnergyConsumed, unit: .kilocalorie(), start: startDate, end: endOfToday) { [weak self] dict in
             guard let self = self else { return }
@@ -199,6 +201,7 @@ final class HealthKitManager: ObservableObject {
                 item.intakeCalories = v
                 self.dailySummaries[k] = item
             }
+            self.syncWidget()
         }
         fetchDailyCollection(for: .dietaryProtein, unit: .gram(), start: startDate, end: endOfToday) { [weak self] dict in
             guard let self = self else { return }

@@ -1,13 +1,35 @@
 import WidgetKit
 import SwiftUI
 
+// MARK: - 週間カロリーウィジェット用 1日分データ構造体
+struct WidgetDayCalorieItem: Codable {
+    let dateString: String   // "yyyy-MM-dd"
+    let weekdayLabel: String // "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+    let dayNumber: Int       // 25, 26, ...
+    let intake: Int          // 摂取カロリー (kcal)
+    let burned: Int          // 消費カロリー (kcal)
+    let isToday: Bool
+    let isFuture: Bool
+    
+    var netBalance: Int { intake - burned }
+    var hasData: Bool { !isFuture && (intake > 0 || burned > 0) }
+}
+
 // MARK: - App Group 共有データ構造体
 struct DisciplineWidgetData {
-    let streakDays: Int
-    let calorieBalance: Int
-    let intakeCalories: Int
-    let burnedCalories: Int
-    let habitProgressPercent: Int
+    let days: [WidgetDayCalorieItem]
+    
+    var totalWeeklyIntake: Int {
+        days.filter { $0.hasData }.reduce(0) { $0 + $1.intake }
+    }
+    
+    var totalWeeklyBurned: Int {
+        days.filter { $0.hasData }.reduce(0) { $0 + $1.burned }
+    }
+    
+    var totalWeeklyNet: Int {
+        totalWeeklyIntake - totalWeeklyBurned
+    }
     
     static let appGroupIDs = [
         "group.com.lldkinn9.Discipline-R",
@@ -15,31 +37,69 @@ struct DisciplineWidgetData {
     ]
     
     static func loadFromSharedDefaults() -> DisciplineWidgetData {
+        let todayStr = Self.dateString(for: Date())
+        
         for groupID in appGroupIDs {
             if let defaults = UserDefaults(suiteName: groupID),
-               defaults.object(forKey: "widget_intake_calories") != nil || defaults.object(forKey: "widget_habit_progress") != nil {
-                let streak = defaults.integer(forKey: "widget_streak_days")
-                let balance = defaults.integer(forKey: "widget_calorie_balance")
-                let intake = defaults.integer(forKey: "widget_intake_calories")
-                let burned = defaults.integer(forKey: "widget_burned_calories")
-                let habitPct = defaults.integer(forKey: "widget_habit_progress")
-                
-                return DisciplineWidgetData(
-                    streakDays: streak,
-                    calorieBalance: balance,
-                    intakeCalories: intake,
-                    burnedCalories: burned,
-                    habitProgressPercent: habitPct
-                )
+               let rawData = defaults.data(forKey: "widget_weekly_calories_v1"),
+               let decoded = try? JSONDecoder().decode([WidgetDayCalorieItem].self, from: rawData),
+               decoded.count == 7 {
+                // 日付が変わっていた場合でも当日のハイライトを正確に更新
+                let updated = decoded.map { item -> WidgetDayCalorieItem in
+                    let isTodayNow = (item.dateString == todayStr)
+                    let isFutureNow = (item.dateString > todayStr)
+                    return WidgetDayCalorieItem(
+                        dateString: item.dateString,
+                        weekdayLabel: item.weekdayLabel,
+                        dayNumber: item.dayNumber,
+                        intake: item.intake,
+                        burned: item.burned,
+                        isToday: isTodayNow,
+                        isFuture: isFutureNow
+                    )
+                }
+                return DisciplineWidgetData(days: updated)
             }
         }
-        return DisciplineWidgetData(
-            streakDays: 0,
-            calorieBalance: 0,
-            intakeCalories: 0,
-            burnedCalories: 0,
-            habitProgressPercent: 0
-        )
+        return DisciplineWidgetData(days: generateFallbackCurrentWeek(withSampleData: false))
+    }
+    
+    static func placeholderData() -> DisciplineWidgetData {
+        return DisciplineWidgetData(days: generateFallbackCurrentWeek(withSampleData: true))
+    }
+    
+    private static func dateString(for date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+    
+    private static func generateFallbackCurrentWeek(withSampleData: Bool) -> [WidgetDayCalorieItem] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 1 // 日曜始まり (SUN - SAT)
+        let startOfToday = cal.startOfDay(for: Date())
+        let weekday = cal.component(.weekday, from: startOfToday)
+        let sunday = cal.date(byAdding: .day, value: -(weekday - 1), to: startOfToday) ?? startOfToday
+        let labels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+        let sampleIntakes = [1525, 1147, 1258, 1210, 0, 0, 0]
+        let sampleBurned  = [2083, 2317, 2293, 1906, 0, 0, 0]
+        
+        return (0..<7).map { offset in
+            let d = cal.date(byAdding: .day, value: offset, to: sunday) ?? startOfToday
+            let isToday = cal.isDate(d, inSameDayAs: startOfToday)
+            let isFuture = d > startOfToday
+            let intake = (withSampleData && !isFuture) ? sampleIntakes[offset] : 0
+            let burned = (withSampleData && !isFuture) ? sampleBurned[offset] : 0
+            return WidgetDayCalorieItem(
+                dateString: dateString(for: d),
+                weekdayLabel: labels[offset],
+                dayNumber: cal.component(.day, from: d),
+                intake: intake,
+                burned: burned,
+                isToday: isToday,
+                isFuture: isFuture
+            )
+        }
     }
 }
 
@@ -50,216 +110,204 @@ struct DisciplineEntry: TimelineEntry {
 
 struct DisciplineProvider: TimelineProvider {
     func placeholder(in context: Context) -> DisciplineEntry {
-        DisciplineEntry(
-            date: Date(),
-            data: DisciplineWidgetData(streakDays: 14, calorieBalance: -320, intakeCalories: 1850, burnedCalories: 2170, habitProgressPercent: 80)
-        )
+        DisciplineEntry(date: Date(), data: DisciplineWidgetData.placeholderData())
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DisciplineEntry) -> ()) {
-        let entry = DisciplineEntry(date: Date(), data: DisciplineWidgetData.loadFromSharedDefaults())
-        completion(entry)
+        let data = context.isPreview ? DisciplineWidgetData.placeholderData() : DisciplineWidgetData.loadFromSharedDefaults()
+        completion(DisciplineEntry(date: Date(), data: data))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         let currentData = DisciplineWidgetData.loadFromSharedDefaults()
         let entry = DisciplineEntry(date: Date(), data: currentData)
-        // 15分ごとに自動更新
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
 }
 
-// MARK: - Widget View (Small & Medium 両対応・漆黒Liquid Noirデザイン)
+// MARK: - Widget View (Medium横長専用・日曜〜土曜 週間カロリー収支＆棒グラフUI)
 struct DisciplineWidgetEntryView : View {
     var entry: DisciplineProvider.Entry
-    @Environment(\.widgetFamily) var family
+
+    private var maxCalorieInWeek: Double {
+        let highest = entry.data.days.map { max($0.intake, $0.burned) }.max() ?? 2500
+        return max(Double(highest), 2400.0)
+    }
 
     var body: some View {
-        if family == .systemMedium {
-            mediumView
-        } else {
-            smallView
-        }
-    }
-    
-    // MARK: - Small Widget
-    private var smallView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("DISCIPLINE")
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(2)
-                    .foregroundColor(Color(white: 0.5))
-                Spacer()
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.white)
-            }
+            // 上段ヘッダー：左にタイトル、右に週間合計ピル (IN / OUT / NET)
+            headerBar
             
-            Spacer()
-            
-            // カロリー収支メイン表示
-            VStack(alignment: .leading, spacing: 2) {
-                Text("NET BALANCE")
-                    .font(.system(size: 8, weight: .semibold))
-                    .tracking(1)
-                    .foregroundColor(Color(white: 0.45))
-                
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(entry.data.calorieBalance > 0 ? "+\(entry.data.calorieBalance)" : "\(entry.data.calorieBalance)")
-                        .font(.system(size: 24, weight: .light, design: .monospaced))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    Text("kcal")
-                        .font(.system(size: 9))
-                        .foregroundColor(Color(white: 0.5))
+            // 下段：日曜(SUN)〜土曜(SAT) の7カラムカード
+            HStack(spacing: 4) {
+                ForEach(Array(entry.data.days.enumerated()), id: \.offset) { _, day in
+                    dayColumnCard(for: day)
                 }
-            }
-            
-            Spacer()
-            
-            // 下段：習慣達成率バー & ストリーク
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("HABITS")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(Color(white: 0.5))
-                    Spacer()
-                    Text("\(entry.data.habitProgressPercent)%")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white)
-                }
-                
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color(white: 0.18))
-                            .frame(height: 4)
-                        Capsule()
-                            .fill(Color.white)
-                            .frame(width: geo.size.width * CGFloat(min(max(entry.data.habitProgressPercent, 0), 100)) / 100.0, height: 4)
-                    }
-                }
-                .frame(height: 4)
             }
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .widgetBlackBackground()
     }
     
-    // MARK: - Medium Widget
-    private var mediumView: some View {
-        HStack(spacing: 16) {
-            // 左半分：カロリー収支とIN/OUT内訳
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(.white)
-                    Text("DISCIPLINE")
-                        .font(.system(size: 10, weight: .bold))
-                        .tracking(3)
+    // MARK: - 上段ヘッダー
+    private var headerBar: some View {
+        HStack(alignment: .center, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("DISCIPLINE")
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(2.2)
+                    .foregroundColor(.white)
+                Text("WEEKLY CALORIES")
+                    .font(.system(size: 6.5, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundColor(Color(white: 0.48))
+            }
+            
+            Spacer(minLength: 4)
+            
+            // 右側：週間合計 IN / OUT / NET カプセル
+            HStack(spacing: 7) {
+                HStack(alignment: .firstTextBaseline, spacing: 2.5) {
+                    Text("IN")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundColor(Color(white: 0.45))
+                    Text(formatNumber(entry.data.totalWeeklyIntake))
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                 }
                 
-                Spacer()
-                
-                Text("CALORIE BALANCE")
-                    .font(.system(size: 8, weight: .semibold))
-                    .tracking(1.5)
-                    .foregroundColor(Color(white: 0.45))
-                
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(entry.data.calorieBalance > 0 ? "+\(entry.data.calorieBalance)" : "\(entry.data.calorieBalance)")
-                        .font(.system(size: 30, weight: .light, design: .monospaced))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text("kcal")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(white: 0.5))
+                HStack(alignment: .firstTextBaseline, spacing: 2.5) {
+                    Text("OUT")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundColor(Color(white: 0.45))
+                    Text(formatNumber(entry.data.totalWeeklyBurned))
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(white: 0.65))
                 }
                 
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("IN")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(Color(white: 0.4))
-                        Text("\(entry.data.intakeCalories)")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(Color(white: 0.85))
-                    }
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("OUT")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(Color(white: 0.4))
-                        Text("\(entry.data.burnedCalories)")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(Color(white: 0.85))
-                    }
+                HStack(alignment: .firstTextBaseline, spacing: 2.5) {
+                    Text("NET")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundColor(Color(white: 0.45))
+                    Text(formatNet(entry.data.totalWeeklyNet, showZeroAsZero: true))
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(white: 0.88))
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Rectangle()
-                .fill(Color(white: 0.18))
-                .frame(width: 1)
-                .padding(.vertical, 4)
-            
-            // 右半分：習慣達成率リング ＆ 連続日数
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("STREAK")
-                            .font(.system(size: 8, weight: .bold))
-                            .tracking(1.5)
-                            .foregroundColor(Color(white: 0.45))
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text("\(entry.data.streakDays)")
-                                .font(.system(size: 22, weight: .bold, design: .monospaced))
-                                .foregroundColor(.white)
-                            Text("DAYS")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundColor(Color(white: 0.5))
-                        }
-                    }
-                    Spacer()
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        Text("TODAY'S HABITS")
-                            .font(.system(size: 8, weight: .bold))
-                            .tracking(1)
-                            .foregroundColor(Color(white: 0.45))
-                        Spacer()
-                        Text("\(entry.data.habitProgressPercent)%")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                    }
-                    
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color(white: 0.18))
-                                .frame(height: 6)
-                            Capsule()
-                                .fill(Color.white)
-                                .frame(width: geo.size.width * CGFloat(min(max(entry.data.habitProgressPercent, 0), 100)) / 100.0, height: 6)
-                        }
-                    }
-                    .frame(height: 6)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(white: 0.08))
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+            )
         }
-        .padding(16)
-        .widgetBlackBackground()
+    }
+    
+    // MARK: - 各曜日の縦長カード (SUN ~ SAT)
+    private func dayColumnCard(for day: WidgetDayCalorieItem) -> some View {
+        let maxCal = maxCalorieInWeek
+        let barAreaHeight: CGFloat = 32.0
+        let inHeight: CGFloat = day.hasData
+            ? max(3.0, CGFloat(Double(day.intake) / maxCal) * barAreaHeight)
+            : 2.5
+        let outHeight: CGFloat = day.hasData
+            ? max(3.0, CGFloat(Double(day.burned) / maxCal) * barAreaHeight)
+            : 2.5
+        
+        return VStack(spacing: 0) {
+            // 1. 曜日＆日付ヘッダー（当日は白塗りバッジ＋黒文字）
+            VStack(spacing: 0.5) {
+                Text(day.weekdayLabel)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundColor(
+                        day.isToday ? .black : (day.isFuture ? Color(white: 0.38) : .white)
+                    )
+                Text("\(day.dayNumber)")
+                    .font(.system(size: 7.5, weight: day.isToday ? .bold : .medium, design: .monospaced))
+                    .foregroundColor(
+                        day.isToday ? .black : Color(white: 0.42)
+                    )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4.5)
+                    .fill(day.isToday ? Color.white : Color.clear)
+            )
+            .padding(.horizontal, 2)
+            .padding(.top, 2)
+            
+            Spacer(minLength: 2)
+            
+            // 2. 中央：摂取(白) vs 消費(グレー) の2本縦棒グラフ
+            HStack(alignment: .bottom, spacing: 2.5) {
+                RoundedRectangle(cornerRadius: 1.2)
+                    .fill(day.hasData ? Color.white : Color(white: 0.75))
+                    .frame(width: 3.2, height: inHeight)
+                
+                RoundedRectangle(cornerRadius: 1.2)
+                    .fill(Color(white: 0.38))
+                    .frame(width: 3.2, height: outHeight)
+            }
+            .frame(height: barAreaHeight, alignment: .bottom)
+            .padding(.bottom, 4)
+            
+            // 3. 下段：3行数値（摂取 / 消費 / 収支）
+            VStack(spacing: 1) {
+                Text(day.hasData ? formatNumber(day.intake) : "-")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(day.hasData ? .white : Color(white: 0.28))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                
+                Text(day.hasData ? formatNumber(day.burned) : "-")
+                    .font(.system(size: 6.5, weight: .regular, design: .monospaced))
+                    .foregroundColor(day.hasData ? Color(white: 0.52) : Color(white: 0.25))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                
+                Text(day.hasData ? formatNet(day.netBalance, showZeroAsZero: false) : "-")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(day.hasData ? .white : Color(white: 0.28))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .padding(.bottom, 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(day.isToday ? Color(white: 0.08) : Color(white: 0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(
+                    day.isToday ? Color.white.opacity(0.45) : Color.white.opacity(0.08),
+                    lineWidth: day.isToday ? 0.9 : 0.5
+                )
+        )
+    }
+    
+    private func formatNumber(_ val: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: val)) ?? "\(val)"
+    }
+    
+    private func formatNet(_ val: Int, showZeroAsZero: Bool) -> String {
+        if val > 0 {
+            return "+\(val)"
+        } else if val == 0 {
+            return showZeroAsZero ? "0" : "0"
+        } else {
+            return "\(val)"
+        }
     }
 }
 
@@ -282,9 +330,19 @@ struct DisciplineWidget: Widget {
         StaticConfiguration(kind: kind, provider: DisciplineProvider()) { entry in
             DisciplineWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Discipline Status")
-        .description("本日のカロリー収支と習慣達成率を漆黒のミニマルデザインで表示します。")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .configurationDisplayName("Discipline Weekly Calories")
+        .description("日曜〜土曜の週間カロリー収支（摂取・消費・差分）と棒グラフを表示します。")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabledIfAvailable()
     }
 }
 
+extension WidgetConfiguration {
+    func contentMarginsDisabledIfAvailable() -> some WidgetConfiguration {
+        if #available(iOSApplicationExtension 17.0, iOS 17.0, *) {
+            return self.contentMarginsDisabled()
+        } else {
+            return self
+        }
+    }
+}

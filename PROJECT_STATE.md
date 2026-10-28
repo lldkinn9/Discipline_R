@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.7`
+- **Version:** `v1.0.8`
 - **Last Updated:** `2026-10-28`
-- **Phase:** Widget Extension 統合・ビルド確認済み ＆ 正式 AppIcon（案B: Minimal Monolith "D"）適用完了
+- **Phase:** 週間カロリー収支ウィジェット（日曜〜土曜・Medium横長専用UI）実装完了
 
 ---
 
@@ -55,6 +55,11 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.8` (2026-10-28)
+- **週間カロリー収支ウィジェット（Medium横長専用・日曜〜土曜 7カラムUI）の完全再現:**
+  - `DisciplineWidget.swift` を Medium サイズ（`.systemMedium`）専用に統一し、上部に `DISCIPLINE / WEEKLY CALORIES` と週間合計ピル（`IN / OUT / NET`）、下部に日曜（`SUN`）〜土曜（`SAT`）の7カラムカード（当日白反転バッジ、摂取・消費2本棒グラフ、摂取・消費・収支の3段数値表示）を実装。
+  - `WidgetDataSharer.swift` および `HealthKitManager.swift` を拡張し、日曜〜土曜の7日間カロリーデータを App Group 経由でウィジェットへ自動同期する処理を実装（変更ファイル: `DisciplineWidget/DisciplineWidget.swift`, `Discipline_R/Services/WidgetDataSharer.swift`, `Discipline_R/Services/HealthKitManager.swift`）。
+
 ### `v1.0.7` (2026-10-28)
 - **正式アプリアイコン（案B: Minimal Monolith "D"）の適用:**
   - `Discipline_R/Assets.xcassets/AppIcon.appiconset/AppIcon.png` に、完全漆黒（`#000000`）背景＋純白（`#FFFFFF`）の幾何学モノグラム「Minimal Monolith "D"」（1024×1024px・24bit RGB・透過なし）を正式適用。

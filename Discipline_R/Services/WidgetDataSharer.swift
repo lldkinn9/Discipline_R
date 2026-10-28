@@ -1,6 +1,17 @@
 import Foundation
 import WidgetKit
 
+// MARK: - 週間カロリーウィジェット（日曜〜土曜）の1日分データ構造体
+struct WidgetDayCalorieItem: Codable {
+    let dateString: String   // "yyyy-MM-dd"
+    let weekdayLabel: String // "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+    let dayNumber: Int       // 25, 26, ...
+    let intake: Int          // 摂取カロリー (kcal)
+    let burned: Int          // 消費カロリー (kcal)
+    let isToday: Bool
+    let isFuture: Bool
+}
+
 // MARK: - 本体アプリからWidgetへ最新データを橋渡しするクラス
 final class WidgetDataSharer {
     static let shared = WidgetDataSharer()
@@ -18,8 +29,11 @@ final class WidgetDataSharer {
         calorieBalance: Int,
         intakeCalories: Int,
         burnedCalories: Int,
-        habitProgressPercent: Int
+        habitProgressPercent: Int,
+        weeklyItems: [WidgetDayCalorieItem]
     ) {
+        let encodedWeekly = try? JSONEncoder().encode(weeklyItems)
+        
         for groupID in appGroupIDs {
             if let sharedDefaults = UserDefaults(suiteName: groupID) {
                 sharedDefaults.set(streakDays, forKey: "widget_streak_days")
@@ -27,6 +41,9 @@ final class WidgetDataSharer {
                 sharedDefaults.set(intakeCalories, forKey: "widget_intake_calories")
                 sharedDefaults.set(burnedCalories, forKey: "widget_burned_calories")
                 sharedDefaults.set(habitProgressPercent, forKey: "widget_habit_progress")
+                if let data = encodedWeekly {
+                    sharedDefaults.set(data, forKey: "widget_weekly_calories_v1")
+                }
                 sharedDefaults.synchronize()
             }
         }
@@ -41,17 +58,57 @@ final class WidgetDataSharer {
         let burned = Int(healthKit.todayTotalBurnedCalories)
         let balance = intake - burned
         let habitPercent = Int(habitManager.todayCompletionRatio * 100.0)
-        
-        // 簡易連続達成日数（習慣または規律記録がある日数）
         let streak = calculateCurrentStreak(habitManager: habitManager)
+        let weeklyItems = buildCurrentWeekItems(healthKit: healthKit)
         
         updateWidgetData(
             streakDays: streak,
             calorieBalance: balance,
             intakeCalories: intake,
             burnedCalories: burned,
-            habitProgressPercent: habitPercent
+            habitProgressPercent: habitPercent,
+            weeklyItems: weeklyItems
         )
+    }
+    
+    // 今週（日曜〜土曜）の7日間カロリーデータを生成
+    private func buildCurrentWeekItems(healthKit: HealthKitManager) -> [WidgetDayCalorieItem] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 1 // 日曜始まり (SUN - SAT)
+        let now = Date()
+        let startOfToday = cal.startOfDay(for: now)
+        
+        let weekdayComponent = cal.component(.weekday, from: startOfToday) // 1: Sun ... 7: Sat
+        let daysFromSunday = weekdayComponent - 1
+        guard let sundayDate = cal.date(byAdding: .day, value: -daysFromSunday, to: startOfToday) else {
+            return []
+        }
+        
+        let labels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        
+        return (0..<7).compactMap { offset in
+            guard let date = cal.date(byAdding: .day, value: offset, to: sundayDate) else { return nil }
+            let dateStr = formatter.string(from: date)
+            let dayNum = cal.component(.day, from: date)
+            let isToday = cal.isDate(date, inSameDayAs: startOfToday)
+            let isFuture = date > startOfToday
+            
+            let summary = healthKit.summary(for: date)
+            let intakeVal = isFuture ? 0 : Int(round(isToday ? healthKit.todayIntakeCalories : summary.intakeCalories))
+            let burnedVal = isFuture ? 0 : Int(round(isToday ? healthKit.todayTotalBurnedCalories : summary.totalBurned))
+            
+            return WidgetDayCalorieItem(
+                dateString: dateStr,
+                weekdayLabel: labels[offset],
+                dayNumber: dayNum,
+                intake: intakeVal,
+                burned: burnedVal,
+                isToday: isToday,
+                isFuture: isFuture
+            )
+        }
     }
     
     private func calculateCurrentStreak(habitManager: HabitManager) -> Int {
@@ -60,7 +117,6 @@ final class WidgetDataSharer {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         
-        // すべての習慣の達成日セットを統合
         var allCompletedDates = Set<String>()
         for habit in habitManager.habits {
             allCompletedDates.formUnion(habit.completedDates)
@@ -72,7 +128,6 @@ final class WidgetDataSharer {
                 if allCompletedDates.contains(dateStr) {
                     streak += 1
                 } else if dayOffset == 0 {
-                    // 今日まだ未達成でも昨日まで続いていればカウント継続
                     continue
                 } else {
                     break
@@ -82,4 +137,3 @@ final class WidgetDataSharer {
         return streak
     }
 }
-
