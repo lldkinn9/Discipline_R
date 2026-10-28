@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.8`
+- **Version:** `v1.0.9`
 - **Last Updated:** `2026-10-28`
-- **Phase:** 週間カロリー収支ウィジェット（日曜〜土曜・Medium横長専用UI）実装完了
+- **Phase:** Gemini API 多重フェールオーバー・models.list 動的モデル選定＆疎通診断実装完了
 
 ---
 
@@ -55,6 +55,15 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.9` (2026-10-28)
+- **Gemini API 多重フェールオーバー・`models.list` 動的選定＆モデル診断の完全実装:**
+  - `GeminiClient.swift`:
+    1. メインモデル（`GEMINI_MODEL` || `"gemini-flash-lite-latest"`）➔ サブモデル（`GEMINI_BACKUP_MODEL` || `"gemini-flash-latest"`）➔ 予備モデル（`models.list` から `generateContent` 対応の有効モデルを動的抽出・優先度ソートして自動選定）の3段階＋動的予備チェーンを構築。
+    2. `HTTP 404`（モデル廃止/未存在）、`HTTP 429`（`RESOURCE_EXHAUSTED` / クォータ上限）、`HTTP 500/503`（サーバー過負荷）発生時にエラーを画面に出さず即座に裏で次モデル（および `models.list` からリアルタイム再取得した有効モデル群）へ自動フェールオーバーするリトライループを実装。
+    3. `AQ...` から始まる最新APIキー仕様に完全対応するサニタイズ処理（空白・改行・制御文字・引用符の除去と `.` `-` `_` の保持）およびパーセントエンコーディング処理を実装。
+  - `SettingsView.swift`:
+    - APIキー保存時および「診断」ボタン押下時に `models.list` (`https://generativelanguage.googleapis.com/v1beta/models`) へ疎通確認を行い、`HTTP 200 OK` ステータス・利用可能モデル数・動的選定された予備モデル名を画面上にリアルタイム表示する診断パネルを追加。
+
 ### `v1.0.8` (2026-10-28)
 - **週間カロリー収支ウィジェット（Medium横長専用・日曜〜土曜 7カラムUI）の完全再現:**
   - `DisciplineWidget.swift` を Medium サイズ（`.systemMedium`）専用に統一し、上部に `DISCIPLINE / WEEKLY CALORIES` と週間合計ピル（`IN / OUT / NET`）、下部に日曜（`SUN`）〜土曜（`SAT`）の7カラムカード（当日白反転バッジ、摂取・消費2本棒グラフ、摂取・消費・収支の3段数値表示）を実装。

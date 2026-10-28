@@ -40,6 +40,11 @@ struct SettingsView: View {
         .background(Color.black.ignoresSafeArea())
         .onAppear {
             apiKeyInput = geminiClient.apiKey
+            if geminiClient.hasValidKey && geminiClient.lastDiagnostics == nil {
+                Task {
+                    _ = try? await geminiClient.fetchAndSelectDynamicModels()
+                }
+            }
         }
         .sheet(isPresented: $showingPrivacyPolicySheet) {
             PrivacyPolicySheetView()
@@ -97,12 +102,18 @@ struct SettingsView: View {
                     Button(action: {
                         HapticManager.shared.notification(type: .success)
                         geminiClient.apiKey = apiKeyInput
+                        apiKeyInput = geminiClient.apiKey
                         showSavedToast = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             showSavedToast = false
                         }
+                        if geminiClient.hasValidKey {
+                            Task {
+                                _ = try? await geminiClient.fetchAndSelectDynamicModels()
+                            }
+                        }
                     }) {
-                        Text(showSavedToast ? "SAVED ✓" : "SAVE API KEY")
+                        Text(showSavedToast ? "SAVED & VERIFYING ✓" : "SAVE API KEY")
                             .font(.system(size: 12, weight: .bold))
                             .tracking(1)
                             .foregroundColor(.black)
@@ -115,23 +126,92 @@ struct SettingsView: View {
                     if geminiClient.hasValidKey {
                         Button(action: {
                             HapticManager.shared.impact(style: .light)
+                            Task {
+                                _ = try? await geminiClient.fetchAndSelectDynamicModels()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                if geminiClient.isDiagnosing {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "waveform.path.ecg")
+                                        .font(.system(size: 11))
+                                }
+                                Text("診断")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color(white: 0.18))
+                            .cornerRadius(8)
+                        }
+                        .disabled(geminiClient.isDiagnosing)
+                        
+                        Button(action: {
+                            HapticManager.shared.impact(style: .light)
                             apiKeyInput = ""
                             geminiClient.apiKey = ""
                         }) {
                             Text("CLEAR")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, 14)
                                 .padding(.vertical, 12)
-                                .background(Color(white: 0.15))
+                                .background(Color(white: 0.14))
                                 .cornerRadius(8)
                         }
                     }
                 }
                 
-                Text("使用モデル: \(geminiClient.primaryModel) (自動フォールバック対応)")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(Color(white: 0.4))
+                // 多重モデル冗長化チェーン ＆ models.list 動的疎通診断ステータス表示
+                VStack(alignment: .leading, spacing: 6) {
+                    Divider().background(Color(white: 0.15)).padding(.vertical, 2)
+                    
+                    HStack {
+                        Text("FAILOVER CHAIN & MODEL DIAGNOSTICS")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(1.2)
+                            .foregroundColor(Color(white: 0.5))
+                        Spacer()
+                        if let diag = geminiClient.lastDiagnostics {
+                            Text("HTTP \(diag.statusCode) OK (\(diag.availableGenerateModels.count) models)")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.white)
+                                .cornerRadius(4)
+                        }
+                    }
+                    
+                    Text("・Main: \(geminiClient.primaryModel)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(Color(white: 0.7))
+                    Text("・Sub : \(geminiClient.backupModel)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(Color(white: 0.6))
+                    Text("・Reserve (models.list): \(geminiClient.activeReserveModelName)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(Color(white: 0.6))
+                    
+                    if let diag = geminiClient.lastDiagnostics {
+                        Text("疎通確認済モデル例: \(diag.availableGenerateModels.prefix(4).joined(separator: ", "))")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(Color(white: 0.45))
+                            .lineLimit(2)
+                    } else if let err = geminiClient.lastDiagnosticsError {
+                        Text("診断エラー: \(err)")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(white: 0.75))
+                    } else if !geminiClient.hasValidKey {
+                        Text("※APIキー未設定（AQ...形式および標準キー形式の両方に対応）")
+                            .font(.system(size: 9))
+                            .foregroundColor(Color(white: 0.4))
+                    }
+                }
             }
             .padding(18)
             .background(Color(white: 0.06))
