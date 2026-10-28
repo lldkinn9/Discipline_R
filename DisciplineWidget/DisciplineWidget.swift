@@ -147,7 +147,7 @@ struct DisciplineWidgetEntryView : View {
             }
         }
         .padding(14)
-        .containerBackground(Color.black, for: .widget)
+        .widgetBlackBackground()
     }
     
     // MARK: - Medium Widget
@@ -259,7 +259,18 @@ struct DisciplineWidgetEntryView : View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .containerBackground(Color.black, for: .widget)
+        .widgetBlackBackground()
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func widgetBlackBackground() -> some View {
+        if #available(iOSApplicationExtension 17.0, iOS 17.0, *) {
+            self.containerBackground(Color.black, for: .widget)
+        } else {
+            self.background(Color.black)
+        }
     }
 }
 

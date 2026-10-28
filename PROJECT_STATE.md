@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.5`
+- **Version:** `v1.0.6`
 - **Last Updated:** `2026-10-28`
-- **Phase:** App Store 審査提出前・全体総点検＆コンプライアンス強化完了
+- **Phase:** Widget Extension (`DisciplineWidgetExtension`) 組み込み完了 ＆ AppIcon 5案提示中
 
 ---
 
@@ -55,6 +55,12 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.6` (2026-10-28)
+- **Widget Extension (`DisciplineWidgetExtension`) の Xcode プロジェクト統合 & AppIcon 刷新:**
+  - `Discipline_R.xcodeproj/project.pbxproj` に WidgetKit 拡張ターゲット `DisciplineWidgetExtension` (`com.lldkinn9.Discipline-R.Widget`) を追加し、`group.com.lldkinn9.Discipline-R` の App Group エンタイトルメント（`DisciplineWidgetConfig/DisciplineWidget.entitlements`）および `DisciplineWidgetConfig/Info.plist` を構成。
+  - `DisciplineWidget/DisciplineWidget.swift` に iOS 16 / iOS 17+ 両対応の漆黒背景ヘルパー `.widgetBlackBackground()` を追加。
+  - `AppIcon.png` を5つのデザイン案（案A〜案E）から選択可能に整備（初期値として案Aの完全漆黒フルブリード版 Liquid Noir Droplet を設定）。
+
 ### `v1.0.5` (2026-10-28)
 - **App Store 審査提出に向けたプロジェクト全体総点検・コンプライアンス強化:**
   - **Guideline 1.4.1（医学・栄養根拠の出典リンク明示）:** `AICoachView.swift` および `SettingsView.swift` に、厚生労働省「日本人の食事摂取基準」および WHO（世界保健機関）Healthy Diet の公式Webサイトへの直接参照リンク（`Link`）を設置。
