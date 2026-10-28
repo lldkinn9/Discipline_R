@@ -140,6 +140,7 @@ struct MainTabView: View {
     @State private var selectedTab: Int = 0
     @GestureState private var dragOffset: CGFloat = 0
     @Namespace private var tabAnimation
+    @ObservedObject private var storeManager = StoreManager.shared
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -162,7 +163,18 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 60) // TabBar Space
+            .padding(.bottom, storeManager.isPro ? 60 : 122) // TabBar + バナー広告分の余白
+            
+            // 画面下部バナー広告（Pro版アップデート時は自動非表示）
+            if !storeManager.isPro {
+                AdBannerContainerView(onTapUpgrade: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        selectedTab = 4
+                    }
+                })
+                .padding(.horizontal, 16)
+                .padding(.bottom, 76)
+            }
             
             // カスタム Liquid Glass TabBar (ドラッグ＆タップ両対応・拡大縮小エフェクト付き)
             GeometryReader { geo in

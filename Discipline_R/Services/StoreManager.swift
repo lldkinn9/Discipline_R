@@ -191,3 +191,4 @@ final class StoreManager: ObservableObject {
     }
     #endif
 }
+

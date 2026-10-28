@@ -117,3 +117,4 @@ struct FallbackBannerView: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
+
