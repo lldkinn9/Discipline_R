@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.6`
+- **Version:** `v1.0.7`
 - **Last Updated:** `2026-10-28`
-- **Phase:** Widget Extension (`DisciplineWidgetExtension`) 組み込み完了 ＆ AppIcon 5案提示中
+- **Phase:** Widget Extension 統合・ビルド確認済み ＆ 正式 AppIcon（案B: Minimal Monolith "D"）適用完了
 
 ---
 
@@ -55,6 +55,10 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.7` (2026-10-28)
+- **正式アプリアイコン（案B: Minimal Monolith "D"）の適用:**
+  - `Discipline_R/Assets.xcassets/AppIcon.appiconset/AppIcon.png` に、完全漆黒（`#000000`）背景＋純白（`#FFFFFF`）の幾何学モノグラム「Minimal Monolith "D"」（1024×1024px・24bit RGB・透過なし）を正式適用。
+
 ### `v1.0.6` (2026-10-28)
 - **Widget Extension (`DisciplineWidgetExtension`) の Xcode プロジェクト統合 & AppIcon 刷新:**
   - `Discipline_R.xcodeproj/project.pbxproj` に WidgetKit 拡張ターゲット `DisciplineWidgetExtension` (`com.lldkinn9.Discipline-R.Widget`) を追加し、`group.com.lldkinn9.Discipline-R` の App Group エンタイトルメント（`DisciplineWidgetConfig/DisciplineWidget.entitlements`）および `DisciplineWidgetConfig/Info.plist` を構成。
