@@ -161,3 +161,4 @@ final class HabitManager: ObservableObject {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 }
+

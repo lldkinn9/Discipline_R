@@ -37,3 +37,4 @@ struct HabitItem: Identifiable, Codable, Equatable {
         return completedDates.contains(dateStr)
     }
 }
+

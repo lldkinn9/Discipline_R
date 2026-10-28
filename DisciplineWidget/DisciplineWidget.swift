@@ -10,8 +10,8 @@ struct DisciplineWidgetData {
     let habitProgressPercent: Int
     
     static let appGroupIDs = [
-        "group.com.lldkinn9.DisciplineApp",
-        "group.com.lldkinn9.Discipline-R"
+        "group.com.lldkinn9.Discipline-R",
+        "group.com.lldkinn9.DisciplineApp"
     ]
     
     static func loadFromSharedDefaults() -> DisciplineWidgetData {
@@ -276,3 +276,4 @@ struct DisciplineWidget: Widget {
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
+

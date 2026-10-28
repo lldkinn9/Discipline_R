@@ -5,10 +5,10 @@ import WidgetKit
 final class WidgetDataSharer {
     static let shared = WidgetDataSharer()
     
-    // 仕様指定のApp Group ID（Xcodeデフォルトのgroup.com.lldkinn9.Discipline-Rとも互換同期）
+    // Xcodeで設定された App Group ID を最優先で使用（仕様書の識別子とも互換同期）
     private let appGroupIDs = [
-        "group.com.lldkinn9.DisciplineApp",
-        "group.com.lldkinn9.Discipline-R"
+        "group.com.lldkinn9.Discipline-R",
+        "group.com.lldkinn9.DisciplineApp"
     ]
     
     private init() {}
@@ -82,3 +82,4 @@ final class WidgetDataSharer {
         return streak
     }
 }
+

@@ -10,3 +10,4 @@
 4. **App Store 審査ガイドライン & セキュリティ準拠**
    - APIキーや認証情報をソースコード内にハードコードしないこと（BYOK方式または環境変数を使用）。
    - Gemini API のモデル名は特定世代（`gemini-1.5-*`, `gemini-2.0-*`, `gemini-2.5-*` 等）をハードコードせず、環境変数（`GEMINI_MODEL`）および最新エイリアス（`gemini-flash-lite-latest` 等）で動的に解決すること。
+

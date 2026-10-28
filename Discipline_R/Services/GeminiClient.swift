@@ -151,3 +151,4 @@ final class GeminiClient: ObservableObject {
         return text
     }
 }
+

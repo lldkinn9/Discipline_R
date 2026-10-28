@@ -18,9 +18,9 @@
 ---
 
 ## 2. 識別子・ターゲット構成（個人版との実機共存仕様）
-- **Main App Bundle ID:** `com.lldkinn9.DisciplineApp`
-- **Widget Bundle ID:** `com.lldkinn9.DisciplineApp.Widget`
-- **App Group ID:** `group.com.lldkinn9.DisciplineApp`（`group.com.lldkinn9.Discipline-R` とも互換同期）
+- **Main App Bundle ID:** `com.lldkinn9.Discipline-R` (`com.lldkinn9.DisciplineApp` 互換)
+- **Widget Bundle ID:** `com.lldkinn9.Discipline-R.Widget` (`com.lldkinn9.DisciplineApp.Widget` 互換)
+- **App Group ID:** `group.com.lldkinn9.Discipline-R`（`group.com.lldkinn9.DisciplineApp` とも互換同期）
 
 ---
 
@@ -62,3 +62,4 @@
   3. **Apple HealthKit 一本化 & Empty State 対応:** 外部API（My Trainer）連携を完全撤去し、全指標を HealthKit に一本化。データ0件時の親切な案内バナーを追加。
   4. **医療免責事項の設置 (Guideline 1.4.1):** 初回起動時の同意モーダルおよび SETTINGS 画面に免責事項を設置。
   5. **AppIcon & 全30種 Habit 画像アセットカタログの構築:** アルファなし1024×1024px `#000000` × `#FFFFFF` 幾何学ミニマルAppIconおよび全30枚の習慣背景画像アセットを `Discipline_R/Assets.xcassets` に統合。
+

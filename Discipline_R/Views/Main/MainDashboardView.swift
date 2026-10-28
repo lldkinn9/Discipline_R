@@ -371,3 +371,4 @@ struct MainDashboardView: View {
         return formatter.string(from: Date()).uppercased()
     }
 }
+

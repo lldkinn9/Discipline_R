@@ -17,3 +17,4 @@ struct ActivityRecord: Identifiable, Codable {
         return caloriesIntake - caloriesBurned
     }
 }
+
