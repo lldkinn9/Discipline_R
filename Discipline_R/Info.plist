@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・体重・体脂肪率を集計し、エネルギー収支や生活習慣の達成状況を可視化するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, weight, and body fat percentage) to display your daily calorie balance and habit tracking progress.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Disciplineは日々の健康管理および生活習慣記録のためにヘルスケアデータを利用します。 / Discipline uses Apple Health data to support your daily lifestyle and nutrition self-monitoring.</string>
+</dict>
+</plist>
