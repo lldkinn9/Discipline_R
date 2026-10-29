@@ -12,7 +12,7 @@ struct GeminiDiagnosticsResult {
     let checkedAt: Date
 }
 
-// MARK: - Gemini API 通信クライアント（BYOK・環境変数動的解決・models.list動的選定・多重フェールオーバー完全実装）
+// MARK: - Gemini API 通信クライアント（BYOK・環境変数動的解決・models.list動的選定・多重フェールオーバー・マルチターン対話対応）
 final class GeminiClient: ObservableObject {
     static let shared = GeminiClient()
     
@@ -231,7 +231,11 @@ final class GeminiClient: ObservableObject {
     }
     
     // MARK: - 2. 多重モデル自動フォールバック（メイン ➔ サブ ➔ models.list動的予備モデル群）
-    func generateCoachingAdvice(systemPrompt: String, userContext: String) async throws -> String {
+    func generateCoachingAdvice(
+        systemPrompt: String,
+        userContext: String,
+        conversationHistory: [(isUser: Bool, text: String)] = []
+    ) async throws -> String {
         guard hasValidKey else {
             throw NSError(domain: "GeminiClient", code: 401, userInfo: [NSLocalizedDescriptionKey: "APIキーを設定してください。（SETTINGSタブよりご自身のGemini APIキーを入力してください）"])
         }
@@ -263,7 +267,12 @@ final class GeminiClient: ObservableObject {
             
             do {
                 await MainActor.run { self.currentActiveModel = model }
-                let responseText = try await callGeminiAPI(model: model, systemPrompt: systemPrompt, userMessage: userContext)
+                let responseText = try await callGeminiAPI(
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    userMessage: userContext,
+                    conversationHistory: conversationHistory
+                )
                 return responseText
             } catch let error as NSError {
                 lastError = error
@@ -305,7 +314,12 @@ final class GeminiClient: ObservableObject {
         )
     }
     
-    private func callGeminiAPI(model: String, systemPrompt: String, userMessage: String) async throws -> String {
+    private func callGeminiAPI(
+        model: String,
+        systemPrompt: String,
+        userMessage: String,
+        conversationHistory: [(isUser: Bool, text: String)]
+    ) async throws -> String {
         let cleanKey = apiKey
         guard !cleanKey.isEmpty else {
             throw NSError(domain: "GeminiClient", code: 401, userInfo: [NSLocalizedDescriptionKey: "APIキーを設定してください。"])
@@ -321,7 +335,43 @@ final class GeminiClient: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(cleanKey, forHTTPHeaderField: "x-goog-api-key")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 35
+        
+        // 直近の会話履歴（最大6件）を構築し、連続する同一ロールを安全に整列
+        var contentsArray: [[String: Any]] = []
+        let recentTurns = Array(conversationHistory.suffix(6))
+        for turn in recentTurns {
+            let role = turn.isUser ? "user" : "model"
+            // Gemini API 仕様上、先頭は "user" である必要があるため先頭が "model" の場合はスキップ
+            if contentsArray.isEmpty && role == "model" { continue }
+            if let lastRole = contentsArray.last?["role"] as? String, lastRole == role {
+                // 同一ロールが連続した場合は結合
+                if var lastParts = contentsArray[contentsArray.count - 1]["parts"] as? [[String: Any]],
+                   let prevText = lastParts.first?["text"] as? String {
+                    lastParts[0]["text"] = prevText + "\n\n" + turn.text
+                    contentsArray[contentsArray.count - 1]["parts"] = lastParts
+                }
+            } else {
+                contentsArray.append([
+                    "role": role,
+                    "parts": [["text": turn.text]]
+                ])
+            }
+        }
+        
+        // 最新のユーザーメッセージ（総合ヘルスケア文脈＋今回のリクエスト）を追加
+        if let lastRole = contentsArray.last?["role"] as? String, lastRole == "user" {
+            if var lastParts = contentsArray[contentsArray.count - 1]["parts"] as? [[String: Any]],
+               let prevText = lastParts.first?["text"] as? String {
+                lastParts[0]["text"] = prevText + "\n\n" + userMessage
+                contentsArray[contentsArray.count - 1]["parts"] = lastParts
+            }
+        } else {
+            contentsArray.append([
+                "role": "user",
+                "parts": [["text": userMessage]]
+            ])
+        }
         
         let payload: [String: Any] = [
             "system_instruction": [
@@ -329,17 +379,10 @@ final class GeminiClient: ObservableObject {
                     ["text": systemPrompt]
                 ]
             ],
-            "contents": [
-                [
-                    "role": "user",
-                    "parts": [
-                        ["text": userMessage]
-                    ]
-                ]
-            ],
+            "contents": contentsArray,
             "generationConfig": [
                 "temperature": 0.4,
-                "maxOutputTokens": 1200
+                "maxOutputTokens": 1500
             ]
         ]
         

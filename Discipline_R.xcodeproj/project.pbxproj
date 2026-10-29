@@ -364,7 +364,7 @@
 				INFOPLIST_KEY_GADBannerAdUnitID = "ca-app-pub-1148610655574304/3245126264";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・体重・体脂肪率を集計し、エネルギー収支や生活習慣の達成状況を可視化するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, weight, and body fat percentage) to display your daily calorie balance and habit tracking progress.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・移動距離・運動（ワークアウト）・睡眠時間・体重・体脂肪率・安静時心拍数を集計し、エネルギー収支や生活習慣の達成状況を可視化・総合分析するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, distance, workouts, sleep, weight, body fat percentage, and resting heart rate) to display your calorie balance, habit progress, and comprehensive lifestyle insights.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Disciplineは日々の健康管理および生活習慣記録のためにヘルスケアデータを利用します。 / Discipline uses Apple Health data to support your daily lifestyle and nutrition self-monitoring.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -416,7 +416,7 @@
 				INFOPLIST_KEY_GADBannerAdUnitID = "ca-app-pub-1148610655574304/3245126264";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・体重・体脂肪率を集計し、エネルギー収支や生活習慣の達成状況を可視化するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, weight, and body fat percentage) to display your daily calorie balance and habit tracking progress.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Disciplineは、日々の摂取カロリー・PFCバランス・消費カロリー・歩数・移動距離・運動（ワークアウト）・睡眠時間・体重・体脂肪率・安静時心拍数を集計し、エネルギー収支や生活習慣の達成状況を可視化・総合分析するためにAppleヘルスケア（HealthKit）のデータを読み取ります。 / Discipline reads your Apple Health data (dietary energy, macros, active/basal energy burned, steps, distance, workouts, sleep, weight, body fat percentage, and resting heart rate) to display your calorie balance, habit progress, and comprehensive lifestyle insights.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Disciplineは日々の健康管理および生活習慣記録のためにヘルスケアデータを利用します。 / Discipline uses Apple Health data to support your daily lifestyle and nutrition self-monitoring.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

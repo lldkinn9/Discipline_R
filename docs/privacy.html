@@ -29,18 +29,19 @@
     <div class="card">
         <p>本アプリは、ユーザーの明示的な許可を得た上で、Apple HealthKit から以下のデータを読み取ります：</p>
         <ul>
-            <li>歩数（Step Count）</li>
+            <li>歩数・歩行＋ランニング距離・エクササイズ時間・ワークアウト履歴（Step Count, Distance, Exercise Time, Workouts）</li>
             <li>アクティブエネルギーおよび安静時消費エネルギー（Active / Basal Energy Burned）</li>
             <li>摂取エネルギーおよび主要栄養素（Dietary Energy, Protein, Fat, Carbohydrates）</li>
-            <li>体重・体脂肪率（Body Mass, Body Fat Percentage）</li>
+            <li>睡眠データ（Sleep Analysis）</li>
+            <li>体重・体脂肪率・安静時心拍数（Body Mass, Body Fat Percentage, Resting Heart Rate）</li>
         </ul>
-        <p>これらのデータは端末内でのエネルギー収支・PFCバランスの表示、ウィジェット表示、およびユーザーが任意で実行するAIアドバイザー機能での振り返りにのみ使用されます。開発者のサーバーへ収集・保存されることは一切なく、広告目的や第三者への販売・提供に使用されることも一切ありません。</p>
+        <p>これらのデータは端末内でのエネルギー収支・PFCバランスの表示、ウィジェット表示、およびユーザーが任意で実行するAIアドバイザー機能での総合分析にのみ使用されます。開発者のサーバーへ収集・保存されることは一切なく、広告目的や第三者への販売・提供に使用されることも一切ありません。</p>
     </div>
 
     <h2>2. 習慣データおよびAPIキーの保存について</h2>
     <div class="card">
-        <p>登録された習慣データ、目標設定値、およびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ保存されます。</p>
-        <p>AIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日の集計数値が Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。</p>
+        <p>登録された習慣データおよびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ保存されます。</p>
+        <p>AIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日および過去期間のヘルスケア・習慣の集計サマリーが Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。</p>
     </div>
 
     <h2>3. 広告表示および Pro版アップデート（App内課金）</h2>
@@ -56,8 +57,7 @@
     <p style="margin-top: 28px;"><a href="./index.html">&larr; サポートページへ戻る</a></p>
 
     <div class="footer">
-        制定・改定日: 2026年10月28日 / &copy; 2026 Discipline
+        制定・改定日: 2026年10月29日 / &copy; 2026 Discipline
     </div>
 </body>
 </html>
-

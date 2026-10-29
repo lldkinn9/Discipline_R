@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.13`
+- **Version:** `v1.0.14`
 - **Last Updated:** `2026-10-29`
-- **Phase:** HABITS画面の個人版UI刷新 ＆ SETTINGS画面の目標設定撤去・iOSヘルスケア連携セクション新設完了
+- **Phase:** AI ADVISOR の過去日・睡眠・ワークアウト・習慣履歴横断型「総合アドバイス」強化完了
 
 ---
 
@@ -31,9 +31,9 @@
   - `ActivityRecord.swift`: 日次アクティビティモデル
   - `HabitItem.swift`: 個別習慣モデル
 - `Discipline_R/Services/`
-  - `HealthKitManager.swift`: Apple HealthKit 一本化による歩数・消費カロリー（活動＋基礎代謝）・摂取カロリー・PFC実量・体重・体脂肪率の取得＆過去60日分の日次コレクション集計
+  - `HealthKitManager.swift`: Apple HealthKit 一本化による歩数・移動距離・エクササイズ時間・ワークアウト種目履歴・消費カロリー（活動＋基礎代謝）・摂取カロリー・PFC実量・睡眠時間（重複区間マージ）・体重・体脂肪率・安静時心拍数の取得＆過去60日分の日次コレクション集計
   - `HabitManager.swift`: 習慣データの永続化、上下並び替え、重複を厳密排除した26種類の固有背景画像プリセット、曜日・時刻（任意）指定ローカル通知スケジューリング
-  - `GeminiClient.swift`: BYOK対応 Gemini API クライアント（環境変数 `GEMINI_MODEL` 動的解決＆マルチモデル自動フォールバック）
+  - `GeminiClient.swift`: BYOK対応 Gemini API クライアント（環境変数 `GEMINI_MODEL` 動的解決、マルチモデル自動フォールバック、マルチターン会話履歴連携）
   - `HapticManager.swift`: アプリ全体の触覚フィードバック管理
   - `WidgetDataSharer.swift`: 本体アプリから App Group 経由で Widget へ最新データを即時同期
 - `Discipline_R/Views/`
@@ -42,9 +42,9 @@
   - `Habit/HabitTabView.swift`: HABITS専用タブ（`HABIT & DISCIPLINE` ヘッダー、28日コンパクトヒートマップ、21:9 習慣トラッカー）
   - `Calendar/CalendarView.swift`: 6大規律スタンプ付き月間カレンダー、選択日の詳細レポート＆過去日の習慣記録修正機能
   - `Calendar/DisciplineHeatmapView.swift`: 過去28日間（4週×7日）のコンパクト習慣達成度ヒートマップ
-  - `AICoach/AICoachView.swift`: AI ADVISOR 画面（BYOKオーバーレイ、時間帯別ペース評価による1日の振り返り、自由入力への直接回答）
-  - `AICoach/KnowledgeBase.swift`: 厚生労働省・WHO等の一般栄養基準に基づくシステムプロンプト（医療用語排除・時間帯別ペース評価・直接回答分岐）
-  - `Settings/SettingsView.swift`: Pro版アップデート、BYOK Gemini APIキー設定、iOSヘルスケア（HealthKit）連携ステータス＆リアルタイムプレビュー＆手動更新＆権限確認、医療免責事項、プライバシーポリシー表示
+  - `AICoach/AICoachView.swift`: AI ADVISOR 画面（BYOKオーバーレイ、当日＋直近7日間日別推移＋過去30日トレンド＋ワークアウト・睡眠・習慣定着率＋マルチターン会話履歴による総合分析＆直接回答）
+  - `AICoach/KnowledgeBase.swift`: 厚生労働省・WHO等の一般栄養基準に基づく総合分析システムプロンプト（医療用語排除・時間帯別ペース評価・過去トレンド連動・直接回答分岐）
+  - `Settings/SettingsView.swift`: Pro版アップデート、BYOK Gemini APIキー設定、iOSヘルスケア（HealthKit）連携ステータス＆6指標リアルタイムプレビュー（睡眠・運動含む）＆手動更新＆権限確認、医療免責事項、プライバシーポリシー表示
   - `Common/SkeletonView.swift`: データ読み込み時のスケルトンアニメーションView
 - `Discipline_R/Assets.xcassets/`
   - `AppIcon.appiconset/`: 1024×1024px 完全漆黒（`#000000`）背景＋純白（`#FFFFFF`）幾何学ミニマルシンボルのAppIcon（RGB・透過なし）
@@ -55,6 +55,20 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.14` (2026-10-29)
+- **AI ADVISOR の過去日・睡眠・ワークアウト・習慣履歴を横断した「総合アドバイス機能」へのフル強化:**
+  - **HealthKit 読み取り＆履歴集計の大幅拡張 (`HealthKitManager.swift`):**
+    1. 新規ヘルスケア項目として **睡眠データ (`sleepAnalysis`)**、**歩行＋ランニング距離 (`distanceWalkingRunning`)**、**エクササイズ時間 (`appleExerciseTime`)**、**安静時心拍数 (`restingHeartRate`)** の読み取りを追加。
+    2. 睡眠データについては Apple Watch と iPhone の二重記録を防ぐため、実睡眠ステージ優先＋重複時間区間マージ（Interval Merging）による正確な日別睡眠時間算出ロジックを実装。
+    3. 直近30日間の **ワークアウト履歴 (`HKWorkout`)** をクエリ取得し、種目名（ランニング・筋力トレーニング・ウォーキング・ヨガ等20種以上）・実施日時・運動時間（分）・消費エネルギー（kcal）を集計する `fetchRecentWorkouts` を実装。
+  - **総合コンテキスト生成＆マルチターン対話対応 (`AICoachView.swift` / `KnowledgeBase.swift` / `GeminiClient.swift`):**
+    1. `AICoachView` に `buildComprehensiveContext` を実装し、①現在時刻ペースの当日実績、②直近7日間の日別詳細推移（カロリー収支・PFC・歩数/距離/運動時間・睡眠・体重・習慣達成率）、③直近14日間のワークアウト実施履歴、④過去30日間の中長期トレンド（記録日平均カロリー収支・PFC比率・平均歩数・平均睡眠・心拍・体重/体脂肪推移）、⑤各習慣の過去28日間達成率＆現在の連続記録（ストリーク）を一括構造化して送信。
+    2. `GeminiClient` に直近の会話履歴（最大6ターン）を保持して送信するマルチターン対話サポートおよび会話リセットボタンを追加。
+    3. 未記録項目に対する推測・創作の禁止や医療用語排除（Guideline 1.4.1）を徹底した4セクション総合分析プロンプトおよび自由質問プロンプトへ刷新。
+  - **設定画面プレビュー＆審査用プライバシー表記の完全同期 (`SettingsView.swift` / `docs/privacy.html` / `project.pbxproj`):**
+    1. `SETTINGS` のヘルスケアリアルタイムプレビューに「睡眠時間（昨夜）」および「運動履歴（直近30日件数・本日運動分数）」を追加（計6指標表示）。
+    2. `NSHealthShareUsageDescription`、アプリ内プライバシーポリシー、および GitHub Pages 公開用 `docs/privacy.html` に新規ヘルスケア項目とAI送信データ範囲を完全反映。
+
 ### `v1.0.13` (2026-10-29)
 - **HABITS タブの UI 刷新（個人版アプリ準拠） ＆ SETTINGS タブの目標設定削除・iOSヘルスケア連携セクション新設:**
   - **HABITS 画面の個人版UI完全再現 (`HabitTabView.swift` / `DisciplineHeatmapView.swift` / `HabitTrackerSection.swift` / `HabitManager.swift` / `HabitItem.swift`):**

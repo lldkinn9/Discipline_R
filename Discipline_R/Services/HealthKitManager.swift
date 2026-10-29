@@ -2,7 +2,7 @@ import Foundation
 import HealthKit
 import Combine
 
-// MARK: - 日次ヘルスメトリクス構造体（カレンダー・月間ヒートマップ・曜日対比用）
+// MARK: - 日次ヘルスメトリクス構造体（カレンダー・月間ヒートマップ・曜日対比・AI総合分析用）
 struct DailyHealthSummary {
     let dateString: String // "yyyy-MM-dd"
     var steps: Int = 0
@@ -14,9 +14,23 @@ struct DailyHealthSummary {
     var carbs: Double = 0
     var weight: Double = 0
     var bodyFatPercentage: Double = 0 // % (例: 15.2)
+    var distanceKm: Double = 0        // 歩行＋ランニング距離 (km)
+    var exerciseMinutes: Double = 0   // エクササイズ時間 (分)
+    var sleepHours: Double = 0        // 睡眠時間 (時間)
+    var restingHeartRate: Double = 0  // 安静時心拍数 (bpm)
     
     var totalBurned: Double { activeBurned + basalBurned }
     var netBalance: Double { intakeCalories - totalBurned }
+}
+
+// MARK: - ワークアウト（運動）履歴構造体（AI総合分析・プレビュー用）
+struct WorkoutRecord: Identifiable {
+    let id = UUID()
+    let dateString: String      // "yyyy-MM-dd"
+    let startTimeString: String // "HH:mm"
+    let activityName: String    // 種目名（日本語）
+    let durationMinutes: Int    // 運動時間（分）
+    let energyBurnedKcal: Int   // アクティブ消費カロリー（kcal）
 }
 
 final class HealthKitManager: ObservableObject {
@@ -39,11 +53,18 @@ final class HealthKitManager: ObservableObject {
     @Published var todayProtein: Double = 0.0
     @Published var todayFat: Double = 0.0
     @Published var todayCarbs: Double = 0.0
+    @Published var todayDistanceKm: Double = 0.0
+    @Published var todayExerciseMinutes: Double = 0.0
+    @Published var lastNightSleepHours: Double = 0.0
     @Published var latestWeight: Double = 0.0
     @Published var latestBodyFat: Double = 0.0
+    @Published var latestRestingHeartRate: Double = 0.0
     
     // 過去60日分の日別サマリー辞書 ("yyyy-MM-dd" -> DailyHealthSummary)
     @Published var dailySummaries: [String: DailyHealthSummary] = [:]
+    
+    // 直近30日間のワークアウト履歴（新しい順）
+    @Published var recentWorkouts: [WorkoutRecord] = []
     
     var todayTotalBurnedCalories: Double {
         return todayActiveCalories + todayBasalCalories
@@ -58,6 +79,7 @@ final class HealthKitManager: ObservableObject {
                todayProtein > 0 ||
                todayFat > 0 ||
                todayCarbs > 0 ||
+               lastNightSleepHours > 0 ||
                latestWeight > 0
     }
     
@@ -72,6 +94,7 @@ final class HealthKitManager: ObservableObject {
     func summary(for date: Date) -> DailyHealthSummary {
         let key = dateKey(for: date)
         if Calendar.current.isDateInToday(date) {
+            let historicalToday = dailySummaries[key]
             return DailyHealthSummary(
                 dateString: key,
                 steps: todaySteps,
@@ -81,8 +104,12 @@ final class HealthKitManager: ObservableObject {
                 protein: todayProtein,
                 fat: todayFat,
                 carbs: todayCarbs,
-                weight: latestWeight,
-                bodyFatPercentage: latestBodyFat
+                weight: latestWeight > 0 ? latestWeight : (historicalToday?.weight ?? 0),
+                bodyFatPercentage: latestBodyFat > 0 ? latestBodyFat : (historicalToday?.bodyFatPercentage ?? 0),
+                distanceKm: todayDistanceKm,
+                exerciseMinutes: todayExerciseMinutes,
+                sleepHours: lastNightSleepHours > 0 ? lastNightSleepHours : (historicalToday?.sleepHours ?? 0),
+                restingHeartRate: latestRestingHeartRate > 0 ? latestRestingHeartRate : (historicalToday?.restingHeartRate ?? 0)
             )
         }
         return dailySummaries[key] ?? DailyHealthSummary(dateString: key)
@@ -96,7 +123,7 @@ final class HealthKitManager: ObservableObject {
             return
         }
         
-        let readTypes: Set<HKObjectType> = [
+        var readTypes: Set<HKObjectType> = [
             HKObjectType.quantityType(forIdentifier: .stepCount)!,
             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
             HKObjectType.quantityType(forIdentifier: .basalEnergyBurned)!,
@@ -109,7 +136,20 @@ final class HealthKitManager: ObservableObject {
             HKObjectType.workoutType()
         ]
         
-        healthStore.requestAuthorization(toShare: nil, read: readTypes) { [weak self] success, error in
+        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            readTypes.insert(sleepType)
+        }
+        if let distanceType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
+            readTypes.insert(distanceType)
+        }
+        if let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) {
+            readTypes.insert(exerciseType)
+        }
+        if let restingHRType = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
+            readTypes.insert(restingHRType)
+        }
+        
+        healthStore.requestAuthorization(toShare: nil, read: readTypes) { [weak self] success, _ in
             DispatchQueue.main.async {
                 self?.isAuthorized = success
                 if success {
@@ -152,11 +192,20 @@ final class HealthKitManager: ObservableObject {
             self?.lastSyncedAt = Date()
             self?.isLoading = false
         }
+        fetchTodaySum(for: .distanceWalkingRunning, unit: .meterUnit(with: .kilo)) { [weak self] val in
+            self?.todayDistanceKm = val
+        }
+        fetchTodaySum(for: .appleExerciseTime, unit: .minute()) { [weak self] val in
+            self?.todayExerciseMinutes = val
+        }
         fetchLatestSample(for: .bodyMass, unit: .gramUnit(with: .kilo)) { [weak self] val in
             if val > 0 { self?.latestWeight = val }
         }
         fetchLatestSample(for: .bodyFatPercentage, unit: .percent()) { [weak self] val in
             if val > 0 { self?.latestBodyFat = val * 100.0 }
+        }
+        fetchLatestSample(for: .restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute())) { [weak self] val in
+            if val > 0 { self?.latestRestingHeartRate = val }
         }
     }
     
@@ -183,7 +232,7 @@ final class HealthKitManager: ObservableObject {
         )
     }
     
-    // MARK: - 過去N日間の日別集計（カレンダー6大スタンプ・曜日別対比用）
+    // MARK: - 過去N日間の日別集計（カレンダー・AI総合アドバイザー用）
     func fetchHistoricalDailySummaries(days: Int = 60) {
         let calendar = Calendar.current
         let now = Date()
@@ -249,6 +298,22 @@ final class HealthKitManager: ObservableObject {
                 self.dailySummaries[k] = item
             }
         }
+        fetchDailyCollection(for: .distanceWalkingRunning, unit: .meterUnit(with: .kilo), start: startDate, end: endOfToday) { [weak self] dict in
+            guard let self = self else { return }
+            for (k, v) in dict {
+                var item = self.dailySummaries[k] ?? DailyHealthSummary(dateString: k)
+                item.distanceKm = v
+                self.dailySummaries[k] = item
+            }
+        }
+        fetchDailyCollection(for: .appleExerciseTime, unit: .minute(), start: startDate, end: endOfToday) { [weak self] dict in
+            guard let self = self else { return }
+            for (k, v) in dict {
+                var item = self.dailySummaries[k] ?? DailyHealthSummary(dateString: k)
+                item.exerciseMinutes = v
+                self.dailySummaries[k] = item
+            }
+        }
         fetchDailyDiscreteAverage(for: .bodyMass, unit: .gramUnit(with: .kilo), start: startDate, end: endOfToday) { [weak self] dict in
             guard let self = self else { return }
             for (k, v) in dict {
@@ -264,6 +329,171 @@ final class HealthKitManager: ObservableObject {
                 item.bodyFatPercentage = v * 100.0
                 self.dailySummaries[k] = item
             }
+        }
+        fetchDailyDiscreteAverage(for: .restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: startDate, end: endOfToday) { [weak self] dict in
+            guard let self = self else { return }
+            for (k, v) in dict {
+                var item = self.dailySummaries[k] ?? DailyHealthSummary(dateString: k)
+                item.restingHeartRate = v
+                self.dailySummaries[k] = item
+            }
+        }
+        
+        // 睡眠履歴およびワークアウト履歴の取得
+        fetchSleepHistory(days: days)
+        fetchRecentWorkouts(days: 30)
+    }
+    
+    // MARK: - 睡眠データの重複排除集計（起床日ベースで1日ごとの睡眠時間を算出）
+    private func fetchSleepHistory(days: Int) {
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return }
+        let calendar = Calendar.current
+        let now = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: now)) else { return }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now, options: [])
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)
+        
+        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let self = self, let categorySamples = samples as? [HKCategorySample] else { return }
+            
+            let asleepValues: Set<Int> = [
+                HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                HKCategoryValueSleepAnalysis.asleepREM.rawValue
+            ]
+            let inBedValue = HKCategoryValueSleepAnalysis.inBed.rawValue
+            
+            var asleepIntervalsByDay: [String: [(Date, Date)]] = [:]
+            var inBedIntervalsByDay: [String: [(Date, Date)]] = [:]
+            
+            for sample in categorySamples {
+                guard sample.endDate > sample.startDate else { continue }
+                // 起床時刻（endDate）が属する日付をその日の睡眠として紐付け
+                let dayKey = self.dateKey(for: sample.endDate)
+                if asleepValues.contains(sample.value) {
+                    asleepIntervalsByDay[dayKey, default: []].append((sample.startDate, sample.endDate))
+                } else if sample.value == inBedValue {
+                    inBedIntervalsByDay[dayKey, default: []].append((sample.startDate, sample.endDate))
+                }
+            }
+            
+            var allKeys = Set(asleepIntervalsByDay.keys).union(inBedIntervalsByDay.keys)
+            var sleepHoursByDay: [String: Double] = [:]
+            
+            for key in allKeys {
+                // 実睡眠ステージ（asleep*）があればそれを優先し、ない場合のみ inBed を使用（Apple Watch と iPhone の二重計上防止）
+                let intervals = asleepIntervalsByDay[key]?.isEmpty == false
+                    ? asleepIntervalsByDay[key]!
+                    : (inBedIntervalsByDay[key] ?? [])
+                let mergedSeconds = Self.mergedDurationSeconds(intervals: intervals)
+                if mergedSeconds > 0 {
+                    sleepHoursByDay[key] = mergedSeconds / 3600.0
+                }
+            }
+            
+            DispatchQueue.main.async {
+                let todayKey = self.dateKey(for: Date())
+                for (k, hours) in sleepHoursByDay {
+                    var item = self.dailySummaries[k] ?? DailyHealthSummary(dateString: k)
+                    item.sleepHours = hours
+                    self.dailySummaries[k] = item
+                }
+                if let todaySleep = sleepHoursByDay[todayKey], todaySleep > 0 {
+                    self.lastNightSleepHours = todaySleep
+                } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()),
+                          let yesterdaySleep = sleepHoursByDay[self.dateKey(for: yesterday)],
+                          Calendar.current.component(.hour, from: Date()) < 10 {
+                    // 早朝でまだ今日の睡眠サンプルが確定していない場合のフォールバック
+                    self.lastNightSleepHours = yesterdaySleep
+                }
+            }
+        }
+        healthStore.execute(query)
+    }
+    
+    // 重複する時間区間をマージして合計秒数を返すヘルパー
+    private static func mergedDurationSeconds(intervals: [(Date, Date)]) -> TimeInterval {
+        guard !intervals.isEmpty else { return 0 }
+        let sorted = intervals.sorted { $0.0 < $1.0 }
+        var merged: [(Date, Date)] = [sorted[0]]
+        
+        for current in sorted.dropFirst() {
+            let last = merged[merged.count - 1]
+            if current.0 <= last.1 {
+                merged[merged.count - 1] = (last.0, max(last.1, current.1))
+            } else {
+                merged.append(current)
+            }
+        }
+        return merged.reduce(0.0) { $0 + $1.1.timeIntervalSince($1.0) }
+    }
+    
+    // MARK: - 直近N日間のワークアウト（運動）履歴取得
+    private func fetchRecentWorkouts(days: Int = 30) {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: now)) else { return }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate, limit: 30, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let self = self, let workouts = samples as? [HKWorkout] else { return }
+            
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)
+            
+            let records: [WorkoutRecord] = workouts.map { workout in
+                let kcal: Double
+                if let energyType = energyType,
+                   let sum = workout.statistics(for: energyType)?.sumQuantity() {
+                    kcal = sum.doubleValue(for: .kilocalorie())
+                } else {
+                    kcal = 0
+                }
+                let mins = max(1, Int((workout.duration / 60.0).rounded()))
+                return WorkoutRecord(
+                    dateString: self.dateKey(for: workout.startDate),
+                    startTimeString: timeFormatter.string(from: workout.startDate),
+                    activityName: Self.japaneseWorkoutName(for: workout.workoutActivityType),
+                    durationMinutes: mins,
+                    energyBurnedKcal: Int(kcal.rounded())
+                )
+            }
+            
+            DispatchQueue.main.async {
+                self.recentWorkouts = records
+            }
+        }
+        healthStore.execute(query)
+    }
+    
+    private static func japaneseWorkoutName(for type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "ランニング"
+        case .walking: return "ウォーキング"
+        case .traditionalStrengthTraining, .functionalStrengthTraining: return "筋力トレーニング"
+        case .coreTraining: return "コアトレーニング"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .cycling: return "サイクリング"
+        case .yoga: return "ヨガ"
+        case .pilates: return "ピラティス"
+        case .flexibility, .cooldown, .preparationAndRecovery, .mindAndBody: return "ストレッチ・リカバリー"
+        case .swimming: return "水泳"
+        case .soccer: return "サッカー"
+        case .tennis: return "テニス"
+        case .basketball: return "バスケットボール"
+        case .boxing, .kickboxing, .martialArts: return "ボクシング・格闘技"
+        case .jumpRope: return "縄跳び"
+        case .hiking: return "ハイキング"
+        case .rowing: return "ローイング"
+        case .elliptical: return "エリプティカル"
+        case .stairClimbing: return "ステアクライミング"
+        case .dance, .cardioDance: return "ダンス"
+        default: return "ワークアウト"
         }
     }
     
@@ -363,4 +593,3 @@ final class HealthKitManager: ObservableObject {
         healthStore.execute(query)
     }
 }
-

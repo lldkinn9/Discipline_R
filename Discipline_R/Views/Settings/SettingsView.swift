@@ -436,9 +436,22 @@ struct SettingsView: View {
                             source: "HealthKit"
                         )
                         healthPreviewBox(
-                            title: "歩数",
-                            value: "\(healthKit.todaySteps) 歩",
+                            title: "歩数・距離",
+                            value: "\(healthKit.todaySteps)歩 (\(String(format: "%.1f", healthKit.todayDistanceKm))km)",
                             source: "HealthKit"
+                        )
+                    }
+                    
+                    HStack(spacing: 10) {
+                        healthPreviewBox(
+                            title: "睡眠時間 (昨夜)",
+                            value: healthKit.lastNightSleepHours > 0 ? String(format: "%.1f 時間", healthKit.lastNightSleepHours) : "未記録",
+                            source: "HealthKit (Sleep)"
+                        )
+                        healthPreviewBox(
+                            title: "運動履歴 (直近30日)",
+                            value: "\(healthKit.recentWorkouts.count) 件 / 本日\(Int(healthKit.todayExerciseMinutes))分",
+                            source: "HealthKit (Workout)"
                         )
                     }
                 }
@@ -765,12 +778,12 @@ struct PrivacyPolicySheetView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     policyCard(
                         title: "1. Apple HealthKit（ヘルスケア）データの取り扱い",
-                        bodyText: "本アプリは、ユーザーの明示的な許可を得た上で、Apple HealthKit から以下のデータを読み取ります：\n・歩数（Step Count）\n・アクティブエネルギーおよび安静時消費エネルギー（Active / Basal Energy Burned）\n・摂取エネルギーおよび主要栄養素（Dietary Energy, Protein, Fat, Carbohydrates）\n・体重・体脂肪率（Body Mass, Body Fat Percentage）\n\nこれらのデータは端末内でのエネルギー収支・PFCバランスの表示、ウィジェット表示、およびユーザーが任意で実行するAIアドバイザー機能での振り返りにのみ使用されます。開発者のサーバーへ収集・保存されることは一切なく、広告目的や第三者への販売・提供に使用されることも一切ありません。"
+                        bodyText: "本アプリは、ユーザーの明示的な許可を得た上で、Apple HealthKit から以下のデータを読み取ります：\n・歩数・歩行＋ランニング距離・エクササイズ時間・ワークアウト履歴（Step Count, Distance, Exercise Time, Workouts）\n・アクティブエネルギーおよび安静時消費エネルギー（Active / Basal Energy Burned）\n・摂取エネルギーおよび主要栄養素（Dietary Energy, Protein, Fat, Carbohydrates）\n・睡眠データ（Sleep Analysis）\n・体重・体脂肪率・安静時心拍数（Body Mass, Body Fat Percentage, Resting Heart Rate）\n\nこれらのデータは端末内でのエネルギー収支・PFCバランスの表示、ウィジェット表示、およびユーザーが任意で実行するAIアドバイザー機能での総合分析にのみ使用されます。開発者のサーバーへ収集・保存されることは一切なく、広告目的や第三者への販売・提供に使用されることも一切ありません。"
                     )
                     
                     policyCard(
                         title: "2. 習慣データおよびAPIキーの保存について",
-                        bodyText: "登録された習慣データおよびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ安全に保存されます。\n\nAIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日の集計数値が Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。"
+                        bodyText: "登録された習慣データおよびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ安全に保存されます。\n\nAIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日および過去期間のヘルスケア・習慣の集計サマリーが Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。"
                     )
                     
                     policyCard(
