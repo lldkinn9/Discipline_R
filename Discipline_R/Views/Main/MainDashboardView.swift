@@ -3,8 +3,6 @@ import UIKit
 
 struct MainDashboardView: View {
     @EnvironmentObject var healthKit: HealthKitManager
-    @AppStorage("targetCalories") private var targetCalories: Double = 2200.0
-    @AppStorage("targetSteps") private var targetSteps: Int = 8000
     
     // HealthKit一本化: 摂取カロリーとPFC実量はすべてApple HealthKitから取得
     private var currentIntakeCalories: Double {
@@ -155,7 +153,7 @@ struct MainDashboardView: View {
                         Spacer()
                         metricColumn(title: "BURNED (消費)", value: "\(Int(burned))", unit: "kcal")
                         Spacer()
-                        metricColumn(title: "STEPS (歩数)", value: "\(healthKit.todaySteps)", unit: "/ \(targetSteps)")
+                        metricColumn(title: "STEPS (歩数)", value: "\(healthKit.todaySteps)", unit: "steps")
                     }
                     
                     Divider().background(Color(white: 0.15))

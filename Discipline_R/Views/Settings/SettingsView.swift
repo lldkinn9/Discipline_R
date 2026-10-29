@@ -4,14 +4,12 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var geminiClient = GeminiClient.shared
     @ObservedObject var storeManager = StoreManager.shared
-    
-    @AppStorage("targetCalories") private var targetCalories: Double = 2200.0
-    @AppStorage("targetSteps") private var targetSteps: Int = 8000
-    @AppStorage("targetWeight") private var targetWeight: Double = 68.0
-    @AppStorage("targetBodyFat") private var targetBodyFat: Double = 15.0
+    @ObservedObject var healthKit = HealthKitManager.shared
     
     @State private var apiKeyInput: String = ""
     @State private var showSavedToast: Bool = false
+    @State private var isSyncingHealth: Bool = false
+    @State private var showHealthSyncedToast: Bool = false
     @State private var showingPrivacyPolicySheet: Bool = false
     @State private var showingResetConfirmation: Bool = false
     @State private var showResetDoneToast: Bool = false
@@ -27,8 +25,8 @@ struct SettingsView: View {
                 // 1. Gemini API Key (BYOK 設定セクション)
                 apiKeySection()
                 
-                // 2. カレンダー6大スタンプ＆1日の規律目標設定
-                targetsSection()
+                // 2. iOS ヘルスケア連携 (Apple HealthKit ステータス・リアルタイムプレビュー・手動更新・権限確認)
+                appleHealthSection()
                 
                 // 3. 医療免責事項 (Guideline 1.4.1 対応)
                 medicalDisclaimerSection()
@@ -365,83 +363,134 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - 2. 規律目標値設定（カレンダーの6大スタンプ判定にも連動）
-    private func targetsSection() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("DAILY DISCIPLINE TARGETS")
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(2)
-                .foregroundColor(Color(white: 0.5))
+    // MARK: - 2. iOS ヘルスケア連携 (Apple HealthKit)
+    private func appleHealthSection() -> some View {
+        let statusLabel: String = {
+            if !healthKit.isHealthDataAvailable { return "非対応" }
+            if healthKit.isLoading || isSyncingHealth { return "同期中..." }
+            return healthKit.isAuthorized ? "連携中" : "未連携"
+        }()
+        let isConnected = healthKit.isHealthDataAvailable && healthKit.isAuthorized
+        
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.text.square.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                    Text("APPLE HEALTH (iOS ヘルスケア連携)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(2)
+                        .foregroundColor(Color(white: 0.5))
+                }
+                
+                Spacer()
+                
+                // 連携ステータスバッジ
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(isConnected ? Color.white : Color.gray.opacity(0.5))
+                        .frame(width: 6, height: 6)
+                    Text(statusLabel)
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(isConnected ? .white : Color(white: 0.55))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color(white: 0.14))
+                .cornerRadius(4)
+            }
             
-            VStack(spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 14) {
+                // リアルタイムプレビュー
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("目標摂取カロリー")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white)
+                        Text("HEALTH METRICS (リアルタイムプレビュー)")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(Color(white: 0.5))
                         Spacer()
-                        Text("\(Int(targetCalories)) kcal")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                        if let synced = healthKit.lastSyncedAt {
+                            Text("最終更新 \(formattedTime(synced))")
+                                .font(.system(size: 9, design: .monospaced))
+                                .foregroundColor(Color(white: 0.45))
+                        }
                     }
-                    Slider(value: $targetCalories, in: 1200...3500, step: 50)
-                        .tint(.white)
+                    
+                    HStack(spacing: 10) {
+                        healthPreviewBox(
+                            title: "摂取エネルギー",
+                            value: "\(Int(healthKit.todayIntakeCalories)) kcal",
+                            source: "HealthKit"
+                        )
+                        healthPreviewBox(
+                            title: "消費エネルギー",
+                            value: "\(Int(healthKit.todayTotalBurnedCalories)) kcal",
+                            source: "HealthKit (活動+基礎)"
+                        )
+                    }
+                    
+                    HStack(spacing: 10) {
+                        healthPreviewBox(
+                            title: "PFC実量 (P / F / C)",
+                            value: "P:\(Int(healthKit.todayProtein)) F:\(Int(healthKit.todayFat)) C:\(Int(healthKit.todayCarbs))g",
+                            source: "HealthKit"
+                        )
+                        healthPreviewBox(
+                            title: "歩数",
+                            value: "\(healthKit.todaySteps) 歩",
+                            source: "HealthKit"
+                        )
+                    }
                 }
                 
-                Divider().background(Color(white: 0.15))
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("目標歩数 (カレンダー歩数スタンプ基準)")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text("\(targetSteps) steps")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                // アクションボタン群
+                VStack(spacing: 10) {
+                    // 「最新データ更新」ボタン
+                    Button(action: syncLatestHealthData) {
+                        HStack(spacing: 6) {
+                            if isSyncingHealth {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: showHealthSyncedToast ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            Text(isSyncingHealth ? "最新データ更新中..." : (showHealthSyncedToast ? "最新データ更新完了 ✓" : "最新データ更新"))
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .foregroundColor(.black)
+                        .cornerRadius(8)
                     }
-                    Slider(
-                        value: Binding(
-                            get: { Double(targetSteps) },
-                            set: { targetSteps = Int($0) }
-                        ),
-                        in: 3000...20000,
-                        step: 500
-                    )
-                    .tint(.white)
+                    .disabled(isSyncingHealth)
+                    
+                    // 「iOS設定を開いてアクセス権限を確認」ボタン
+                    Button(action: openIOSSettings) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 12, weight: .bold))
+                            Text("iOS設定を開いてアクセス権限を確認")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Color(white: 0.1))
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                    }
                 }
                 
-                Divider().background(Color(white: 0.15))
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("目標体重 (カレンダー体重スタンプ基準)")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text(String(format: "%.1f kg", targetWeight))
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                    }
-                    Slider(value: $targetWeight, in: 40.0...100.0, step: 0.5)
-                        .tint(.white)
-                }
-                
-                Divider().background(Color(white: 0.15))
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("目標体脂肪率 (カレンダー体脂肪スタンプ基準)")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text(String(format: "%.1f %%", targetBodyFat))
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                    }
-                    Slider(value: $targetBodyFat, in: 8.0...35.0, step: 0.5)
-                        .tint(.white)
-                }
+                Text("※読み取り項目の個別オン/オフは iOS「設定」＞「アプリ」＞「ヘルスケア」＞「データアクセスとデバイス」＞「Discipline」からも確認・変更できます。")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(white: 0.42))
+                    .lineSpacing(3)
             }
             .padding(18)
             .background(Color(white: 0.06))
@@ -451,6 +500,53 @@ struct SettingsView: View {
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
         }
+    }
+    
+    private func healthPreviewBox(title: String, value: String, source: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(Color(white: 0.5))
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(source)
+                .font(.system(size: 8, design: .monospaced))
+                .foregroundColor(Color(white: 0.35))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color(white: 0.09))
+        .cornerRadius(8)
+    }
+    
+    private func syncLatestHealthData() {
+        HapticManager.shared.impact(style: .medium)
+        isSyncingHealth = true
+        healthKit.refreshAllData {
+            isSyncingHealth = false
+            HapticManager.shared.notification(type: .success)
+            showHealthSyncedToast = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                showHealthSyncedToast = false
+            }
+        }
+    }
+    
+    private func openIOSSettings() {
+        HapticManager.shared.impact(style: .light)
+        if let url = URL(string: UIApplication.openSettingsURLString),
+           UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+        }
+    }
+    
+    private func formattedTime(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: date)
     }
     
     // MARK: - 3. 医療免責事項セクション (Guideline 1.4.1 対応)
@@ -620,7 +716,7 @@ struct SettingsView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12))
                             .foregroundColor(Color(white: 0.7))
-                        Text(showResetDoneToast ? "端末内データをすべて初期化しました ✓" : "アプリ内の保存データ（習慣・APIキー・目標値）を初期化")
+                        Text(showResetDoneToast ? "端末内データをすべて初期化しました ✓" : "アプリ内の保存データ（習慣・APIキー）を初期化")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(Color(white: 0.7))
                         Spacer()
@@ -634,7 +730,7 @@ struct SettingsView: View {
                         resetAllLocalData()
                     }
                 } message: {
-                    Text("アプリ内に保存されている習慣リスト・達成履歴・APIキー・目標設定値をすべて消去し、初期状態に戻します。（Appleヘルスケア内のデータは消去されません）")
+                    Text("アプリ内に保存されている習慣リスト・達成履歴・APIキーをすべて消去し、初期状態に戻します。（Appleヘルスケア内のデータは消去されません）")
                 }
             }
             .padding(18)
@@ -651,12 +747,7 @@ struct SettingsView: View {
         HapticManager.shared.notification(type: .success)
         apiKeyInput = ""
         geminiClient.apiKey = ""
-        HabitManager.shared.habits = []
-        HabitManager.shared.saveHabits()
-        targetCalories = 2200.0
-        targetSteps = 8000
-        targetWeight = 68.0
-        targetBodyFat = 15.0
+        HabitManager.shared.updateAllHabits([])
         showResetDoneToast = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             showResetDoneToast = false
@@ -679,7 +770,7 @@ struct PrivacyPolicySheetView: View {
                     
                     policyCard(
                         title: "2. 習慣データおよびAPIキーの保存について",
-                        bodyText: "登録された習慣データ、目標設定値、およびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ安全に保存されます。\n\nAIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日の集計数値が Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。"
+                        bodyText: "登録された習慣データおよびユーザーが任意で設定した Gemini API Key は、お使いの iOS 端末内（UserDefaults / App Group）にのみ安全に保存されます。\n\nAIアドバイザー機能（BYOK）をご自身のAPIキーで利用される場合のみ、当日の集計数値が Google Gemini API へ暗号化通信（HTTPS）を介して送信され、アドバイス文の生成に利用されます。"
                     )
                     
                     policyCard(

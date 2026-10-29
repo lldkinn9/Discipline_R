@@ -9,6 +9,12 @@ final class HabitManager: ObservableObject {
     @Published var habits: [HabitItem] = []
     private let storageKey = "discipline_saved_habits_v1"
     
+    var todayDateString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+    
     // 重複ビジュアルを厳密に排除した全26種類の固有背景画像リスト
     // （既存保存データの後方互換維持のため Assets.xcassets 側のファイル自体は保持）
     let presetImages: [String] = [
@@ -71,6 +77,16 @@ final class HabitManager: ObservableObject {
     func deleteHabit(id: UUID) {
         removeHabitNotifications(for: id)
         habits.removeAll { $0.id == id }
+        saveHabits()
+    }
+    
+    // 編集モード完了時の一括反映（削除された習慣のローカル通知解除＆並び順更新）
+    func updateAllHabits(_ newHabits: [HabitItem]) {
+        let newIDs = Set(newHabits.map { $0.id })
+        for oldHabit in habits where !newIDs.contains(oldHabit.id) {
+            removeHabitNotifications(for: oldHabit.id)
+        }
+        self.habits = newHabits
         saveHabits()
     }
     

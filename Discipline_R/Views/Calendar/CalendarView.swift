@@ -5,10 +5,6 @@ struct CalendarView: View {
     @EnvironmentObject var healthKit: HealthKitManager
     @ObservedObject var habitManager = HabitManager.shared
     
-    @AppStorage("targetSteps") private var targetSteps: Int = 8000
-    @AppStorage("targetWeight") private var targetWeight: Double = 68.0
-    @AppStorage("targetBodyFat") private var targetBodyFat: Double = 15.0
-    
     @State private var currentMonthOffset: Int = 0
     @State private var selectedDate: Date = Date()
     
@@ -106,10 +102,10 @@ struct CalendarView: View {
             HStack(spacing: 12) {
                 legendChip(icon: "checkmark.seal.fill", label: "習慣100%")
                 legendChip(icon: "flame.fill", label: "摂取<消費")
-                legendChip(icon: "figure.walk", label: "目標歩数")
+                legendChip(icon: "figure.walk", label: "8,000歩+")
                 legendChip(icon: "fork.knife", label: "栄養記録")
-                legendChip(icon: "scalemass.fill", label: "目標体重")
-                legendChip(icon: "percent", label: "目標体脂肪")
+                legendChip(icon: "scalemass.fill", label: "体重計測")
+                legendChip(icon: "percent", label: "体脂肪計測")
             }
         }
     }
@@ -397,25 +393,25 @@ struct CalendarView: View {
         // 2. カロリーアンダー（摂取 > 0 かつ 摂取 <= 消費）
         let calUnder = (intake > 0 && burned > 0 && intake <= burned)
         
-        // 3. 目標歩数クリア
-        let stepsDone = summary.steps >= targetSteps
+        // 3. 8,000歩以上クリア
+        let stepsDone = summary.steps >= 8000
         
         // 4. 栄養・食事記録あり（HealthKit摂取カロリーまたはPFCの記録あり）
         let mealLogged = intake > 0 || (summary.protein + summary.fat + summary.carbs) > 0
         
-        // 5. 目標体重クリア（記録があり目標体重以下）
-        let weightDone = (summary.weight > 0 && summary.weight <= targetWeight)
+        // 5. 体重計測あり
+        let weightDone = summary.weight > 0
         
-        // 6. 目標体脂肪率クリア（記録があり目標体脂肪率以下）
-        let fatDone = (summary.bodyFatPercentage > 0 && summary.bodyFatPercentage <= targetBodyFat)
+        // 6. 体脂肪率計測あり
+        let fatDone = summary.bodyFatPercentage > 0
         
         return [
             StampResult(icon: "checkmark.seal.fill", title: "習慣100%", detail: "\(Int(habitRatio * 100))% 達成", achieved: habitDone),
             StampResult(icon: "flame.fill", title: "摂取<消費", detail: intake > 0 ? "\(Int(intake - burned)) kcal" : "未記録", achieved: calUnder),
-            StampResult(icon: "figure.walk", title: "目標歩数", detail: "\(summary.steps) / \(targetSteps)", achieved: stepsDone),
+            StampResult(icon: "figure.walk", title: "8,000歩+", detail: "\(summary.steps) 歩", achieved: stepsDone),
             StampResult(icon: "fork.knife", title: "栄養記録", detail: mealLogged ? "\(Int(intake)) kcal" : "0 kcal", achieved: mealLogged),
-            StampResult(icon: "scalemass.fill", title: "目標体重", detail: summary.weight > 0 ? String(format: "%.1f kg", summary.weight) : "未計測", achieved: weightDone),
-            StampResult(icon: "percent", title: "目標体脂肪", detail: summary.bodyFatPercentage > 0 ? String(format: "%.1f %%", summary.bodyFatPercentage) : "未計測", achieved: fatDone)
+            StampResult(icon: "scalemass.fill", title: "体重計測", detail: summary.weight > 0 ? String(format: "%.1f kg", summary.weight) : "未計測", achieved: weightDone),
+            StampResult(icon: "percent", title: "体脂肪計測", detail: summary.bodyFatPercentage > 0 ? String(format: "%.1f %%", summary.bodyFatPercentage) : "未計測", achieved: fatDone)
         ]
     }
     
@@ -461,4 +457,3 @@ struct CalendarView: View {
         return formatter.string(from: date)
     }
 }
-

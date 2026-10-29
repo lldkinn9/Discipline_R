@@ -39,5 +39,10 @@ struct HabitItem: Identifiable, Codable, Equatable {
         let dateStr = formatter.string(from: date)
         return completedDates.contains(dateStr)
     }
+    
+    // "yyyy-MM-dd" 文字列指定での達成判定（ミニヒートマップ等用）
+    func isCompleted(on dateString: String) -> Bool {
+        return completedDates.contains(dateString)
+    }
 }
 

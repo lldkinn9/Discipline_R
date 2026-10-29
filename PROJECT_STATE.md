@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.12`
+- **Version:** `v1.0.13`
 - **Last Updated:** `2026-10-29`
-- **Phase:** 習慣追加画面のUI/UX改善（カード文字削除・重複ビジュアル排除・Quick Preset撤去・曜日/時刻/通知の任意化）完了
+- **Phase:** HABITS画面の個人版UI刷新 ＆ SETTINGS画面の目標設定撤去・iOSヘルスケア連携セクション新設完了
 
 ---
 
@@ -38,13 +38,13 @@
   - `WidgetDataSharer.swift`: 本体アプリから App Group 経由で Widget へ最新データを即時同期
 - `Discipline_R/Views/`
   - `Main/MainDashboardView.swift`: カロリー収支、月〜日の曜日別対比バーチャート、一般バランス栄養基準（P 13-20%, F 20-30%, C 50-65%）のPFCバランス、Empty State 案内バナー
-  - `Main/HabitTrackerSection.swift`: 21:9 背景画像付き習慣カード、上下並び替えボタン、3ステップ習慣作成ウィザード
-  - `Habit/HabitTabView.swift`: HABITS専用タブ、5週間ヒートマップ、直近7日間の習慣別達成マトリクス
+  - `Main/HabitTrackerSection.swift`: 21:9 フルブリード習慣カード（完了時暗転＆28日ミニヒートマップ表示）、編集モード（削除・上下並び替え）、3ステップ習慣作成ウィザード
+  - `Habit/HabitTabView.swift`: HABITS専用タブ（`HABIT & DISCIPLINE` ヘッダー、28日コンパクトヒートマップ、21:9 習慣トラッカー）
   - `Calendar/CalendarView.swift`: 6大規律スタンプ付き月間カレンダー、選択日の詳細レポート＆過去日の習慣記録修正機能
-  - `Calendar/DisciplineHeatmapView.swift`: 過去35日間の習慣達成度ヒートマップ
+  - `Calendar/DisciplineHeatmapView.swift`: 過去28日間（4週×7日）のコンパクト習慣達成度ヒートマップ
   - `AICoach/AICoachView.swift`: AI ADVISOR 画面（BYOKオーバーレイ、時間帯別ペース評価による1日の振り返り、自由入力への直接回答）
   - `AICoach/KnowledgeBase.swift`: 厚生労働省・WHO等の一般栄養基準に基づくシステムプロンプト（医療用語排除・時間帯別ペース評価・直接回答分岐）
-  - `Settings/SettingsView.swift`: BYOK Gemini APIキー設定、1日の規律目標スライダー、医療免責事項表示
+  - `Settings/SettingsView.swift`: Pro版アップデート、BYOK Gemini APIキー設定、iOSヘルスケア（HealthKit）連携ステータス＆リアルタイムプレビュー＆手動更新＆権限確認、医療免責事項、プライバシーポリシー表示
   - `Common/SkeletonView.swift`: データ読み込み時のスケルトンアニメーションView
 - `Discipline_R/Assets.xcassets/`
   - `AppIcon.appiconset/`: 1024×1024px 完全漆黒（`#000000`）背景＋純白（`#FFFFFF`）幾何学ミニマルシンボルのAppIcon（RGB・透過なし）
@@ -55,6 +55,16 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.13` (2026-10-29)
+- **HABITS タブの UI 刷新（個人版アプリ準拠） ＆ SETTINGS タブの目標設定削除・iOSヘルスケア連携セクション新設:**
+  - **HABITS 画面の個人版UI完全再現 (`HabitTabView.swift` / `DisciplineHeatmapView.swift` / `HabitTrackerSection.swift` / `HabitManager.swift` / `HabitItem.swift`):**
+    1. ヘッダーを個人版準拠の `HABIT & DISCIPLINE` / `CONSISTENCY & STREAK TRACKING` へ刷新し、下部の7日間マトリクス表を撤去。
+    2. `DisciplineHeatmapView` を `DISCIPLINE HEATMAP (HABIT)`（4週×7日＝28日間のコンパクト正方形グリッド）へ刷新。
+    3. `HabitTrackerSection` に `HABIT TRACKER` ヘッダー（`＋` 追加ボタン ＆ `編集 / 完了` モード切替ボタン）を実装。各習慣カードを `21:9` フルブリード表示＋右下モノスペースタイトル配置とし、タップ完了時に暗転（`0.75`）して左側に28日間の個別達成ミニヒートマップ（`RECORD (28D) X/28`）が浮かび上がるUIを再現。編集モードでの削除時にローカル通知も自動解除される `updateAllHabits` を実装。
+  - **SETTINGS 画面の改修 ＆ 不要な目標設定の完全撤去 (`SettingsView.swift` / `HealthKitManager.swift` / `MainDashboardView.swift` / `AICoachView.swift` / `KnowledgeBase.swift` / `CalendarView.swift`):**
+    1. `SETTINGS` から不要な目標設定項目（`DAILY DISCIPLINE TARGETS`：目標摂取カロリー・目標歩数・目標体重・目標体脂肪率）を完全削除し、ダッシュボード・AIアドバイザー・カレンダースタンプからも固定目標値への依存を排除。
+    2. `SETTINGS` に **`APPLE HEALTH (iOS ヘルスケア連携)`** セクションを新設し、連携ステータスバッジ（`連携中` / `未連携` / `同期中...`＋最終更新時刻）、4指標リアルタイムプレビュー（摂取エネルギー・消費エネルギー・PFC実量・歩数）、**「最新データ更新」**ボタン、および**「iOS設定を開いてアクセス権限を確認」**ボタンを実装。
+
 ### `v1.0.12` (2026-10-29)
 - **習慣追加・登録フローのUI/UX刷新 ＆ 曜日・実行時刻・通知の完全任意化:**
   - **STEP 1 ビジュアル選択の改善 (`HabitTrackerSection.swift` / `HabitManager.swift`):**

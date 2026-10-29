@@ -13,9 +13,6 @@ struct AICoachView: View {
     @ObservedObject var habitManager = HabitManager.shared
     @ObservedObject var geminiClient = GeminiClient.shared
     
-    @AppStorage("targetCalories") private var targetCalories: Double = 2200.0
-    @AppStorage("targetSteps") private var targetSteps: Int = 8000
-    
     @State private var messages: [ChatMessage] = []
     @State private var userQuestion: String = ""
     
@@ -285,10 +282,9 @@ struct AICoachView: View {
         - 現在時刻: \(currentTimeStr)（\(timePeriodNote)）
 
         【本日のヘルスケアデータ（Apple HealthKit）】
-        - 目標摂取カロリー: \(Int(targetCalories)) kcal
         - 現在の摂取カロリー: \(Int(intake)) kcal
         - 現在の消費カロリー合計: \(Int(burned)) kcal (収支: \(Int(intake - burned)) kcal)
-        - 本日の歩数: \(healthKit.todaySteps) 歩 (目標: \(targetSteps) 歩)
+        - 本日の歩数: \(healthKit.todaySteps) 歩
         - PFC実量: タンパク質 \(String(format: "%.1f", p))g / 脂質 \(String(format: "%.1f", f))g / 炭水化物 \(String(format: "%.1f", c))g
         - 達成済みの習慣: \(completedHabits.isEmpty ? "まだなし" : completedHabits.joined(separator: ", "))
         - 未達成の習慣: \(uncompletedHabits.isEmpty ? "なし（すべて達成または未登録）" : uncompletedHabits.joined(separator: ", "))

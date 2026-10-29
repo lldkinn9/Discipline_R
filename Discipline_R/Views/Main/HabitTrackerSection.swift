@@ -4,232 +4,285 @@ import UIKit
 struct HabitTrackerSection: View {
     @ObservedObject var habitManager = HabitManager.shared
     @State private var showingAddHabit = false
+    @State private var isEditing = false
+    @State private var draftHabits: [HabitItem] = []
+    
+    private var displayedHabits: [HabitItem] {
+        isEditing ? draftHabits : habitManager.habits
+    }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("DAILY HABITS")
-                        .font(.system(size: 11, weight: .semibold))
-                        .tracking(2)
-                        .foregroundColor(Color(white: 0.5))
-                    Text("本日のターゲット習慣（タップで完了・上下矢印で並び替え）")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(white: 0.35))
-                }
+        VStack(spacing: 12) {
+            // ヘッダー: HABIT TRACKER + 「＋」ボタン + 「編集 / 完了」ボタン（個人版アプリ準拠）
+            HStack(alignment: .center) {
+                Text(isEditing ? "HABIT TRACKER (並び替え / 削除)" : "HABIT TRACKER")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(isEditing ? .yellow : .gray)
+                
                 Spacer()
-                Button(action: {
-                    HapticManager.shared.impact(style: .light)
-                    showingAddHabit = true
-                }) {
-                    HStack(spacing: 4) {
+                
+                HStack(spacing: 14) {
+                    Button(action: {
+                        HapticManager.shared.impact(style: .light)
+                        if isEditing { cancelEditing() }
+                        showingAddHabit = true
+                    }) {
                         Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("ADD")
-                            .font(.system(size: 10, weight: .bold))
-                            .tracking(1)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(4)
                     }
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white)
-                    .cornerRadius(6)
+                    
+                    Button(action: {
+                        HapticManager.shared.selection()
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            if isEditing {
+                                habitManager.updateAllHabits(draftHabits)
+                                isEditing = false
+                                draftHabits = []
+                            } else {
+                                draftHabits = habitManager.habits
+                                isEditing = true
+                            }
+                        }
+                    }) {
+                        Text(isEditing ? "完了" : "編集")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(isEditing ? .yellow : .white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(4)
+                    }
                 }
             }
             
-            if habitManager.habits.isEmpty {
-                Text("登録されている習慣がありません。右上の「ADD」から習慣を追加してください。")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.4))
-                    .padding(.vertical, 20)
+            // 習慣カード一覧 (21:9 アスペクト比)
+            if displayedHabits.isEmpty {
+                emptyStateView()
             } else {
                 VStack(spacing: 12) {
-                    ForEach(Array(habitManager.habits.enumerated()), id: \.element.id) { index, habit in
-                        HabitImageCardView(
-                            habit: habit,
-                            isFirst: index == 0,
-                            isLast: index == habitManager.habits.count - 1,
-                            onToggle: {
-                                habitManager.toggleCompletion(for: habit.id)
-                            },
-                            onMoveUp: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                    habitManager.moveHabitUp(id: habit.id)
-                                }
-                            },
-                            onMoveDown: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                    habitManager.moveHabitDown(id: habit.id)
-                                }
-                            },
-                            onDelete: {
-                                habitManager.deleteHabit(id: habit.id)
-                            }
-                        )
+                    ForEach(Array(displayedHabits.enumerated()), id: \.element.id) { index, habit in
+                        habitCard(habit: habit, index: index)
                     }
                 }
             }
         }
+        .padding(16)
+        .background(Color.white.opacity(0.04))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isEditing ? Color.yellow.opacity(0.3) : Color.white.opacity(0.12), lineWidth: 1)
+        )
         .sheet(isPresented: $showingAddHabit) {
             AddHabitSheet()
         }
+        .onDisappear {
+            cancelEditing()
+        }
     }
-}
-
-// MARK: - 21:9 背景画像付き習慣カード（完了時グレースケール＆暗転アニメーション・上下並び替えボタン付き）
-struct HabitImageCardView: View {
-    let habit: HabitItem
-    let isFirst: Bool
-    let isLast: Bool
-    let onToggle: () -> Void
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
-    let onDelete: () -> Void
     
-    var body: some View {
-        let completed = habit.isCompletedToday
+    private func cancelEditing() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isEditing = false
+            draftHabits = []
+        }
+    }
+    
+    // MARK: - 21:9 習慣カード（個人版アプリ準拠：タップ完了で暗転＆左側に28日ミニヒートマップ表示、編集モードで削除＆上下移動）
+    private func habitCard(habit: HabitItem, index: Int) -> some View {
+        let isDone = habit.isCompletedToday
+        let hasCustomDays = !habit.targetDaysOfWeek.isEmpty && habit.targetDaysOfWeek.count < 7
+        let hasTime = (habit.targetHour != nil && habit.targetMinute != nil)
         
-        ZStack(alignment: .leading) {
-            // 背景画像レイヤー
+        return ZStack(alignment: .bottomTrailing) {
             GeometryReader { geo in
-                if UIImage(named: habit.imageName) != nil {
-                    Image(habit.imageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
-                        .saturation(completed ? 0.0 : 0.85)
-                        .overlay(
+                ZStack {
+                    if UIImage(named: habit.imageName) != nil {
+                        Image(habit.imageName)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    } else {
+                        ZStack {
                             LinearGradient(
-                                colors: [
-                                    Color.black.opacity(completed ? 0.86 : 0.72),
-                                    Color.black.opacity(completed ? 0.78 : 0.38)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                                colors: [Color(white: 0.2), Color(white: 0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                        )
-                } else {
-                    // 画像未配置時のフォールバック（漆黒グラデーション）
-                    LinearGradient(
-                        colors: [Color(white: 0.12), Color(white: 0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                            Image(systemName: "photo")
+                                .font(.system(size: 26))
+                                .foregroundColor(.white.opacity(0.3))
+                        }
+                    }
+                    
+                    // 完了時暗転レイヤー
+                    Color.black
+                        .opacity(isDone ? 0.75 : 0.0)
+                        .animation(.easeInOut(duration: 0.25), value: isDone)
+                    
+                    // 完了時：左側に28日ミニヒートマップ (RECORD (28D) X/28)
+                    if isDone && !isEditing {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                HabitMiniHeatmapView(habit: habit)
+                                    .padding(.leading, 16)
+                                Spacer(minLength: 0)
+                            }
+                            Spacer()
+                        }
+                        .transition(.opacity)
+                    }
+                    
+                    // 編集モード時の半透明オーバーレイ
+                    if isEditing {
+                        Color.black.opacity(0.32)
+                    }
+                }
+            }
+            .aspectRatio(21.0 / 9.0, contentMode: .fit)
+            .cornerRadius(6)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !isEditing {
+                    HapticManager.shared.impact(style: .rigid)
+                    habitManager.toggleCompletion(for: habit.id)
                 }
             }
             
-            // 前面テキスト＆チェックマークレイヤー
-            HStack(spacing: 12) {
-                Button(action: onToggle) {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .stroke(completed ? Color.white : Color(white: 0.6), lineWidth: 1.5)
-                                .frame(width: 26, height: 26)
-                            
-                            if completed {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 26, height: 26)
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.black)
-                            }
+            // 右下に習慣タイトル（および任意設定されている場合のみ曜日・時刻）を表示
+            VStack(alignment: .trailing, spacing: 3) {
+                if (hasCustomDays || hasTime) && !isEditing {
+                    HStack(spacing: 6) {
+                        if hasCustomDays {
+                            Text(formattedWeekdays(habit.targetDaysOfWeek))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.85))
                         }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(habit.title)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(completed ? Color(white: 0.45) : .white)
-                                .strikethrough(completed, color: Color(white: 0.45))
-                                .lineLimit(1)
-                            
-                            let hasCustomDays = !habit.targetDaysOfWeek.isEmpty && habit.targetDaysOfWeek.count < 7
-                            let hasTime = (habit.targetHour != nil && habit.targetMinute != nil)
-                            
-                            if hasCustomDays || hasTime {
-                                HStack(spacing: 8) {
-                                    if hasCustomDays {
-                                        Text(formattedWeekdays(habit.targetDaysOfWeek))
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(Color(white: 0.65))
-                                    }
-                                    
-                                    if let hour = habit.targetHour, let minute = habit.targetMinute {
-                                        Label(String(format: "%02d:%02d", hour, minute), systemImage: "clock")
-                                            .font(.system(size: 10, design: .monospaced))
-                                            .foregroundColor(Color(white: 0.65))
-                                        
-                                        if let before = habit.notifyBeforeMinutes {
-                                            Text(before == 0 ? "定刻通知" : "\(before)分前通知")
-                                                .font(.system(size: 9, weight: .medium))
-                                                .foregroundColor(Color(white: 0.75))
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(Color.white.opacity(0.12))
-                                                .cornerRadius(4)
-                                        }
+                        if let hour = habit.targetHour, let minute = habit.targetMinute {
+                            Text(String(format: "%02d:%02d", hour, minute))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.85))
+                        }
+                    }
+                    .shadow(color: .black.opacity(0.9), radius: 3, x: 0, y: 1)
+                }
+                
+                Text(habit.title)
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+            }
+            .padding(12)
+            
+            // 編集モード時の操作UI（左上: 削除 / 右側: 上下移動・並び替えピル）
+            if isEditing {
+                ZStack {
+                    // 左上: 削除ボタン
+                    VStack {
+                        HStack {
+                            Button(action: {
+                                HapticManager.shared.impact(style: .rigid)
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
+                                    draftHabits.removeAll { $0.id == habit.id }
+                                }
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(.red)
+                                    .background(Circle().fill(Color.white))
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                    
+                    // 右側: 安定した並び替えピル（▲ / 順番番号 / ▼）
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 4) {
+                            Button(action: {
+                                if index > 0 {
+                                    HapticManager.shared.impact(style: .rigid)
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        draftHabits.swapAt(index, index - 1)
                                     }
                                 }
+                            }) {
+                                Image(systemName: "chevron.up")
+                                    .font(.system(size: 13, weight: .black))
+                                    .foregroundColor(index > 0 ? .white : .gray.opacity(0.25))
+                                    .frame(width: 32, height: 26)
+                                    .background(Color.white.opacity(index > 0 ? 0.2 : 0.05))
+                                    .cornerRadius(4)
                             }
+                            .disabled(index == 0)
+                            
+                            Text(String(format: "%02d", index + 1))
+                                .font(.system(size: 9, weight: .black, design: .monospaced))
+                                .foregroundColor(.white)
+                                .frame(height: 14)
+                            
+                            Button(action: {
+                                if index < draftHabits.count - 1 {
+                                    HapticManager.shared.impact(style: .rigid)
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        draftHabits.swapAt(index, index + 1)
+                                    }
+                                }
+                            }) {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 13, weight: .black))
+                                    .foregroundColor(index < draftHabits.count - 1 ? .white : .gray.opacity(0.25))
+                                    .frame(width: 32, height: 26)
+                                    .background(Color.white.opacity(index < draftHabits.count - 1 ? 0.2 : 0.05))
+                                    .cornerRadius(4)
+                            }
+                            .disabled(index >= draftHabits.count - 1)
                         }
-                        Spacer(minLength: 4)
+                        .padding(6)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 0.8)
+                        )
+                        .padding(.trailing, 10)
                     }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                // 右端：上下並び替えボタン
-                VStack(spacing: 6) {
-                    Button(action: onMoveUp) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(isFirst ? Color(white: 0.25) : .white)
-                            .frame(width: 28, height: 26)
-                            .background(Color.black.opacity(0.45))
-                            .cornerRadius(5)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(isFirst)
-                    
-                    Button(action: onMoveDown) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(isLast ? Color(white: 0.25) : .white)
-                            .frame(width: 28, height: 26)
-                            .background(Color.black.opacity(0.45))
-                            .cornerRadius(5)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(isLast)
                 }
             }
-            .padding(.horizontal, 16)
         }
-        .frame(height: 84)
-        .cornerRadius(12)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(completed ? Color.white.opacity(0.35) : Color.white.opacity(0.12), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isDone ? Color.white.opacity(0.4) : Color.white.opacity(0.15), lineWidth: 1)
         )
-        .contextMenu {
-            Button {
-                onMoveUp()
-            } label: {
-                Label("1つ上へ移動", systemImage: "arrow.up")
-            }
-            Button {
-                onMoveDown()
-            } label: {
-                Label("1つ下へ移動", systemImage: "arrow.down")
-            }
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("この習慣を削除", systemImage: "trash")
+    }
+    
+    private func emptyStateView() -> some View {
+        VStack(spacing: 8) {
+            Text("登録された習慣がありません")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.gray)
+            Button(action: {
+                HapticManager.shared.impact(style: .light)
+                showingAddHabit = true
+            }) {
+                Text("＋ 最初の習慣を登録する")
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(4)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
     
     private func formattedWeekdays(_ days: [Int]) -> String {
@@ -237,6 +290,62 @@ struct HabitImageCardView: View {
             1: "日", 2: "月", 3: "火", 4: "水", 5: "木", 6: "金", 7: "土"
         ]
         return days.sorted().compactMap { map[$0] }.joined(separator: "・")
+    }
+}
+
+// MARK: - 習慣単体の28日ミニヒートマップ（完了カード左側に表示）
+struct HabitMiniHeatmapView: View {
+    let habit: HabitItem
+    private let squareSize: CGFloat = 17
+    private let spacing: CGFloat = 3.5
+    private let gridWidth: CGFloat = 140
+    
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.fixed(squareSize), spacing: spacing), count: 7)
+    }
+    
+    var body: some View {
+        let days = last28Days()
+        let count = habit.completedDates.filter { Set(days).contains($0) }.count
+        
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("RECORD (28D)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+                
+                Text("\(count)/28")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+            }
+            .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+            
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(days, id: \.self) { dateStr in
+                    let isCompleted = habit.isCompleted(on: dateStr)
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(isCompleted ? Color.white : Color.white.opacity(0.2))
+                        .frame(width: squareSize, height: squareSize)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 2.5)
+                                .stroke(Color.white.opacity(isCompleted ? 0.0 : 0.25), lineWidth: 0.5)
+                        )
+                }
+            }
+            .frame(width: gridWidth, alignment: .leading)
+        }
+        .frame(width: gridWidth, alignment: .leading)
+    }
+    
+    private func last28Days() -> [String] {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = Date()
+        return (0..<28).reversed().compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return formatter.string(from: date)
+        }
     }
 }
 
@@ -401,7 +510,7 @@ struct AddHabitSheet: View {
                         .tracking(2)
                         .foregroundColor(Color(white: 0.5))
                     
-                    ZStack(alignment: .leading) {
+                    ZStack(alignment: .bottomTrailing) {
                         GeometryReader { geo in
                             if UIImage(named: selectedImage) != nil {
                                 Image(selectedImage)
@@ -409,21 +518,23 @@ struct AddHabitSheet: View {
                                     .scaledToFill()
                                     .frame(width: geo.size.width, height: geo.size.height)
                                     .clipped()
-                                    .overlay(Color.black.opacity(0.55))
                             } else {
                                 Color(white: 0.1)
                             }
                         }
-                        Text(title.isEmpty ? "習慣タイトルを入力..." : title)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(title.isEmpty ? Color(white: 0.5) : .white)
-                            .padding(.horizontal, 18)
+                        .aspectRatio(21.0 / 9.0, contentMode: .fit)
+                        
+                        Text(title.isEmpty ? "HABIT TITLE" : title)
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundColor(title.isEmpty ? Color(white: 0.6) : .white)
+                            .lineLimit(1)
+                            .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+                            .padding(12)
                     }
-                    .frame(height: 84)
-                    .cornerRadius(12)
+                    .cornerRadius(6)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
                     )
                 }
                 

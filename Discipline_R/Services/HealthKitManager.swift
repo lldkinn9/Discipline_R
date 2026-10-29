@@ -25,6 +25,11 @@ final class HealthKitManager: ObservableObject {
     
     @Published var isAuthorized: Bool = false
     @Published var isLoading: Bool = true
+    @Published var lastSyncedAt: Date? = nil
+    
+    var isHealthDataAvailable: Bool {
+        HKHealthStore.isHealthDataAvailable()
+    }
     
     // 今日のリアルタイム集計値（Apple HealthKit 一本化）
     @Published var todaySteps: Int = 0
@@ -144,6 +149,7 @@ final class HealthKitManager: ObservableObject {
         }
         fetchTodaySum(for: .dietaryCarbohydrates, unit: .gram()) { [weak self] val in
             self?.todayCarbs = val
+            self?.lastSyncedAt = Date()
             self?.isLoading = false
         }
         fetchLatestSample(for: .bodyMass, unit: .gramUnit(with: .kilo)) { [weak self] val in
@@ -151,6 +157,22 @@ final class HealthKitManager: ObservableObject {
         }
         fetchLatestSample(for: .bodyFatPercentage, unit: .percent()) { [weak self] val in
             if val > 0 { self?.latestBodyFat = val * 100.0 }
+        }
+    }
+    
+    // 設定画面「最新データ更新」ボタン等からの手動フル同期
+    func refreshAllData(completion: (() -> Void)? = nil) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                completion?()
+            }
+            return
+        }
+        requestAuthorization()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            self.lastSyncedAt = Date()
+            completion?()
         }
     }
     
