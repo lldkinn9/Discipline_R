@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.11`
-- **Last Updated:** `2026-10-28`
-- **Phase:** Google AdMob SDK (`GoogleMobileAds`) ＆ 本番アプリID・広告ユニットID 組み込み完了
+- **Version:** `v1.0.12`
+- **Last Updated:** `2026-10-29`
+- **Phase:** 習慣追加画面のUI/UX改善（カード文字削除・重複ビジュアル排除・Quick Preset撤去・曜日/時刻/通知の任意化）完了
 
 ---
 
@@ -32,7 +32,7 @@
   - `HabitItem.swift`: 個別習慣モデル
 - `Discipline_R/Services/`
   - `HealthKitManager.swift`: Apple HealthKit 一本化による歩数・消費カロリー（活動＋基礎代謝）・摂取カロリー・PFC実量・体重・体脂肪率の取得＆過去60日分の日次コレクション集計
-  - `HabitManager.swift`: 習慣データの永続化、上下並び替え、30種類の背景画像プリセット、曜日・時刻指定ローカル通知スケジューリング
+  - `HabitManager.swift`: 習慣データの永続化、上下並び替え、重複を厳密排除した26種類の固有背景画像プリセット、曜日・時刻（任意）指定ローカル通知スケジューリング
   - `GeminiClient.swift`: BYOK対応 Gemini API クライアント（環境変数 `GEMINI_MODEL` 動的解決＆マルチモデル自動フォールバック）
   - `HapticManager.swift`: アプリ全体の触覚フィードバック管理
   - `WidgetDataSharer.swift`: 本体アプリから App Group 経由で Widget へ最新データを即時同期
@@ -55,6 +55,18 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.12` (2026-10-29)
+- **習慣追加・登録フローのUI/UX刷新 ＆ 曜日・実行時刻・通知の完全任意化:**
+  - **STEP 1 ビジュアル選択の改善 (`HabitTrackerSection.swift` / `HabitManager.swift`):**
+    1. 各ビジュアルカード左下のラベル文字列（`Habit 01` 等）を削除し、選択中カードの右下チェックマークのみを表示するクリーンなUIへ変更。
+    2. 全30種のアセットを目視・バイナリ照合し、重複していた4種（`z1x4n5...`＝サッカー重複、`z7x6b9...`＝テニス重複、`f0z04f...`＝キッチン掃除重複、`trcb2k...`＝デスク筆記重複）を選択候補から除外し、かぶりのない26種（2列×13段）へ整理（既存保存データの互換維持のため `Assets.xcassets` 内の画像ファイル自体は保持）。
+  - **STEP 2 習慣名入力のシンプル化 (`HabitTrackerSection.swift`):**
+    - `QUICK PRESETS (タップで自動入力)` セクションを撤去。
+  - **STEP 3 曜日・実行時刻・通知設定の任意化 ＆ 他機能への影響防止 (`HabitItem.swift` / `HabitManager.swift` / `HabitTrackerSection.swift` / `DisciplineHeatmapView.swift`):**
+    1. 曜日を1つも選択しない状態（`targetDaysOfWeek = []`）でもそのまま登録できるよう変更。曜日未指定の習慣も `HABITS` タブ達成率・ヒートマップ・`CALENDAR` スタンプ＆過去日記録修正・`AI ADVISOR`・Widget に整合して反映。
+    2. `HabitItem` の `targetHour` / `targetMinute` をオプショナル化し（既存の保存済みJSONデータとも完全後方互換）、「実行時刻を設定する」トグルにより時刻を設定せずに登録可能へ変更（時刻未設定時は習慣カード上の時計バッジも非表示化）。
+    3. リマインド通知の標準表示（初期値）を「通知オフ」に変更し、通知時刻を選んだ際の自動時刻有効化および曜日未指定時の毎日定刻通知（`_daily`）に対応。
+
 ### `v1.0.11` (2026-10-28)
 - **Google AdMob SDK (`GoogleMobileAds`) ＆ 本番アプリID・広告ユニットIDの完全統合:**
   - `Discipline_R.xcodeproj/project.pbxproj`: Swift Package Manager 経由で `swift-package-manager-google-mobile-ads` (`GoogleMobileAds`) を自動解決・リンクする設定および `-ObjC` リンカフラグを追加。

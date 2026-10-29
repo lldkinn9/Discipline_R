@@ -4,19 +4,22 @@ struct HabitItem: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var title: String
     var imageName: String // Assets内の画像名
-    var targetDaysOfWeek: [Int] // 1: 日曜, 2: 月曜 ... 7: 土曜
-    var notifyBeforeMinutes: Int? // nilなら通知オフ。0: 時間通り, 10: 10分前 など
-    var targetHour: Int // 例: 8 (朝8時)
-    var targetMinute: Int // 例: 0 (0分)
+    var targetDaysOfWeek: [Int] // 1: 日曜, 2: 月曜 ... 7: 土曜（空配列 [] の場合は曜日指定なし）
+    var notifyBeforeMinutes: Int? = nil // nilなら通知オフ。0: 時間通り, 5: 5分前, 10: 10分前, 30: 30分前
+    var targetHour: Int? = nil // nilなら実行時刻未設定。例: 8 (朝8時)
+    var targetMinute: Int? = nil // nilなら実行時刻未設定。例: 0 (0分)
     var completedDates: Set<String> = [] // "yyyy-MM-dd" 形式で達成日を記録
     
-    // 今日がターゲット曜日かどうか判定
+    // 今日がターゲット対象かどうか判定（曜日未指定の場合は毎日対象として扱う）
     var isTargetToday: Bool {
         return isTargetOn(date: Date())
     }
     
-    // 指定日がターゲット曜日かどうか判定
+    // 指定日がターゲット対象かどうか判定（曜日未指定の場合は毎日対象として扱う）
     func isTargetOn(date: Date) -> Bool {
+        if targetDaysOfWeek.isEmpty {
+            return true
+        }
         let weekday = Calendar.current.component(.weekday, from: date)
         return targetDaysOfWeek.contains(weekday)
     }

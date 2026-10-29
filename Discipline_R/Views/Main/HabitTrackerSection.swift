@@ -145,19 +145,32 @@ struct HabitImageCardView: View {
                                 .strikethrough(completed, color: Color(white: 0.45))
                                 .lineLimit(1)
                             
-                            HStack(spacing: 8) {
-                                Label(String(format: "%02d:%02d", habit.targetHour, habit.targetMinute), systemImage: "clock")
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .foregroundColor(Color(white: 0.65))
-                                
-                                if let before = habit.notifyBeforeMinutes {
-                                    Text(before == 0 ? "定刻通知" : "\(before)分前通知")
-                                        .font(.system(size: 9, weight: .medium))
-                                        .foregroundColor(Color(white: 0.75))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.white.opacity(0.12))
-                                        .cornerRadius(4)
+                            let hasCustomDays = !habit.targetDaysOfWeek.isEmpty && habit.targetDaysOfWeek.count < 7
+                            let hasTime = (habit.targetHour != nil && habit.targetMinute != nil)
+                            
+                            if hasCustomDays || hasTime {
+                                HStack(spacing: 8) {
+                                    if hasCustomDays {
+                                        Text(formattedWeekdays(habit.targetDaysOfWeek))
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(Color(white: 0.65))
+                                    }
+                                    
+                                    if let hour = habit.targetHour, let minute = habit.targetMinute {
+                                        Label(String(format: "%02d:%02d", hour, minute), systemImage: "clock")
+                                            .font(.system(size: 10, design: .monospaced))
+                                            .foregroundColor(Color(white: 0.65))
+                                        
+                                        if let before = habit.notifyBeforeMinutes {
+                                            Text(before == 0 ? "定刻通知" : "\(before)分前通知")
+                                                .font(.system(size: 9, weight: .medium))
+                                                .foregroundColor(Color(white: 0.75))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.white.opacity(0.12))
+                                                .cornerRadius(4)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -218,6 +231,13 @@ struct HabitImageCardView: View {
             }
         }
     }
+    
+    private func formattedWeekdays(_ days: [Int]) -> String {
+        let map: [Int: String] = [
+            1: "日", 2: "月", 3: "火", 4: "水", 5: "木", 6: "金", 7: "土"
+        ]
+        return days.sorted().compactMap { map[$0] }.joined(separator: "・")
+    }
 }
 
 // MARK: - 習慣新規追加モーダル（3ステップ・ウィザード形式：1.背景画像 ➔ 2.タイトル ➔ 3.曜日・時間・通知）
@@ -227,21 +247,14 @@ struct AddHabitSheet: View {
     
     @State private var currentStep: Int = 1 // 1: 画像選択, 2: タイトル入力, 3: 曜日・時間・通知設定
     @State private var title: String = ""
-    @State private var selectedImage: String = "Gemini_Generated_Image_1e3dfw1e3dfw1e3d"
-    @State private var selectedDays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
+    @State private var selectedImage: String = HabitManager.shared.presetImages.first ?? "Gemini_Generated_Image_1e3dfw1e3dfw1e3d"
+    @State private var selectedDays: Set<Int> = [] // 未選択（空）でもそのまま登録可能
+    @State private var hasTargetTime: Bool = false // 実行時刻を設定しないことも可能
     @State private var targetTime: Date = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
-    @State private var notifyOption: Int = 10 // -1: OFF, 0: 定刻, 5: 5分前, 10: 10分前, 30: 30分前
+    @State private var notifyOption: Int = -1 // 標準表示は「通知オフ」(-1: OFF, 0: 定刻, 5: 5分前, 10: 10分前, 30: 30分前)
     
     let weekdays = [
         (1, "日"), (2, "月"), (3, "火"), (4, "水"), (5, "木"), (6, "金"), (7, "土")
-    ]
-    
-    let quickTitles = [
-        "朝のコップ1杯の水",
-        "バランスの良い朝食",
-        "20分以上のウォーキング",
-        "筋トレ・ワークアウト",
-        "23時までの就寝・睡眠確保"
     ]
     
     var body: some View {
@@ -318,7 +331,7 @@ struct AddHabitSheet: View {
         .cornerRadius(6)
     }
     
-    // MARK: - STEP 1: 背景画像の選択（全30枚を大きなカードで一覧表示）
+    // MARK: - STEP 1: 背景画像の選択（重複のないビジュアルカードを文字ラベルなしで一覧表示）
     private func step1ImageSelectionView() -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -331,15 +344,15 @@ struct AddHabitSheet: View {
                     .foregroundColor(Color(white: 0.6))
                 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(habitManager.presetImages, id: \.name) { item in
+                    ForEach(habitManager.presetImages, id: \.self) { imageName in
                         Button(action: {
                             HapticManager.shared.selection()
-                            selectedImage = item.name
+                            selectedImage = imageName
                         }) {
-                            ZStack(alignment: .bottomLeading) {
+                            ZStack(alignment: .bottomTrailing) {
                                 GeometryReader { geo in
-                                    if UIImage(named: item.name) != nil {
-                                        Image(item.name)
+                                    if UIImage(named: imageName) != nil {
+                                        Image(imageName)
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: geo.size.width, height: geo.size.height)
@@ -349,30 +362,23 @@ struct AddHabitSheet: View {
                                     }
                                 }
                                 
-                                LinearGradient(
-                                    colors: [.clear, Color.black.opacity(0.8)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                                
-                                HStack {
-                                    Text(item.label)
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                if selectedImage == imageName {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 18))
                                         .foregroundColor(.white)
-                                    Spacer()
-                                    if selectedImage == item.name {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.white)
-                                    }
+                                        .background(
+                                            Circle()
+                                                .fill(Color.black.opacity(0.65))
+                                                .frame(width: 16, height: 16)
+                                        )
+                                        .padding(8)
                                 }
-                                .padding(8)
                             }
                             .frame(height: 82)
                             .cornerRadius(10)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(selectedImage == item.name ? Color.white : Color.white.opacity(0.12), lineWidth: selectedImage == item.name ? 2.5 : 1)
+                                    .stroke(selectedImage == imageName ? Color.white : Color.white.opacity(0.12), lineWidth: selectedImage == imageName ? 2.5 : 1)
                             )
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -439,51 +445,41 @@ struct AddHabitSheet: View {
                                 .stroke(Color.white.opacity(0.25), lineWidth: 1)
                         )
                 }
-                
-                // クイック候補チップ
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("QUICK PRESETS (タップで自動入力)")
-                        .font(.system(size: 10, weight: .bold))
-                        .tracking(1.5)
-                        .foregroundColor(Color(white: 0.45))
-                    
-                    ForEach(quickTitles, id: \.self) { preset in
-                        Button(action: {
-                            HapticManager.shared.selection()
-                            title = preset
-                        }) {
-                            HStack {
-                                Text(preset)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Image(systemName: "plus.circle")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Color(white: 0.5))
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color(white: 0.07))
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
             }
             .padding(20)
         }
     }
     
-    // MARK: - STEP 3: 曜日・実行時間・リマインド通知の設定
+    // MARK: - STEP 3: 曜日・実行時間・リマインド通知の設定（すべて任意設定対応）
     private func step3ScheduleView() -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // 曜日選択
+                // 曜日選択（0個でも登録可能）
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("TARGET DAYS (実行する曜日)")
-                        .font(.system(size: 10, weight: .bold))
-                        .tracking(2)
-                        .foregroundColor(Color(white: 0.5))
+                    HStack {
+                        Text("TARGET DAYS (実行する曜日・任意)")
+                            .font(.system(size: 10, weight: .bold))
+                            .tracking(2)
+                            .foregroundColor(Color(white: 0.5))
+                        Spacer()
+                        Button(action: {
+                            HapticManager.shared.selection()
+                            if selectedDays.count == 7 {
+                                selectedDays.removeAll()
+                            } else {
+                                selectedDays = Set(1...7)
+                            }
+                        }) {
+                            Text(selectedDays.count == 7 ? "選択解除" : "すべて選択")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(white: 0.65))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(white: 0.12))
+                                .cornerRadius(5)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                     
                     HStack(spacing: 8) {
                         ForEach(weekdays, id: \.0) { day, label in
@@ -506,18 +502,44 @@ struct AddHabitSheet: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                     }
+                    
+                    Text("※曜日を選択しなくてもそのまま登録できます（曜日指定なし）")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(white: 0.42))
                 }
                 
-                // 実行時刻
+                // 実行時刻とリマインド通知（任意）
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("SCHEDULE & REMINDER (実行時刻と通知)")
+                    Text("SCHEDULE & REMINDER (実行時刻と通知・任意)")
                         .font(.system(size: 10, weight: .bold))
                         .tracking(2)
                         .foregroundColor(Color(white: 0.5))
                     
                     VStack(spacing: 14) {
-                        DatePicker("実行時刻", selection: $targetTime, displayedComponents: .hourAndMinute)
-                            .foregroundColor(.white)
+                        Toggle(isOn: $hasTargetTime.animation(.easeInOut(duration: 0.2))) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("実行時刻を設定する")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white)
+                                Text(hasTargetTime ? "指定した時刻をカードに表示します" : "未設定（時刻指定なし）")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(white: 0.45))
+                            }
+                        }
+                        .tint(.white)
+                        .onChange(of: hasTargetTime) { enabled in
+                            if !enabled {
+                                notifyOption = -1
+                            }
+                        }
+                        
+                        if hasTargetTime {
+                            Divider().background(Color(white: 0.15))
+                            
+                            DatePicker("実行時刻", selection: $targetTime, displayedComponents: .hourAndMinute)
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                        }
                         
                         Divider().background(Color(white: 0.15))
                         
@@ -535,6 +557,13 @@ struct AddHabitSheet: View {
                             }
                             .pickerStyle(.menu)
                             .tint(.white)
+                            .onChange(of: notifyOption) { newValue in
+                                if newValue != -1 && !hasTargetTime {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        hasTargetTime = true
+                                    }
+                                }
+                            }
                         }
                     }
                     .padding(16)
@@ -591,18 +620,19 @@ struct AddHabitSheet: View {
     private var canProceed: Bool {
         if currentStep == 1 { return !selectedImage.isEmpty }
         if currentStep == 2 { return !title.trimmingCharacters(in: .whitespaces).isEmpty }
-        return !selectedDays.isEmpty
+        return true // STEP 3 は曜日未選択・時刻未設定・通知オフでも保存可能
     }
     
     private func saveNewHabit() {
         let components = Calendar.current.dateComponents([.hour, .minute], from: targetTime)
+        let activeNotify: Int? = (hasTargetTime && notifyOption != -1) ? notifyOption : nil
         let newHabit = HabitItem(
             title: title.trimmingCharacters(in: .whitespaces),
             imageName: selectedImage,
             targetDaysOfWeek: Array(selectedDays).sorted(),
-            notifyBeforeMinutes: notifyOption == -1 ? nil : notifyOption,
-            targetHour: components.hour ?? 8,
-            targetMinute: components.minute ?? 0
+            notifyBeforeMinutes: activeNotify,
+            targetHour: hasTargetTime ? (components.hour ?? 8) : nil,
+            targetMinute: hasTargetTime ? (components.minute ?? 0) : nil
         )
         habitManager.addHabit(newHabit)
         dismiss()

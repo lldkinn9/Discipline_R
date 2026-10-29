@@ -71,10 +71,7 @@ struct DisciplineHeatmapView: View {
     
     // 指定日の習慣達成率 (0.0 〜 1.0)
     private func completionRatio(for date: Date) -> Double {
-        let total = habitManager.habits.count
-        guard total > 0 else { return 0.0 }
-        let completed = habitManager.habits.filter { $0.isCompleted(on: date) }.count
-        return Double(completed) / Double(total)
+        return habitManager.completionRatio(on: date)
     }
     
     private func tileColor(for ratio: Double) -> Color {
