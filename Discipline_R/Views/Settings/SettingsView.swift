@@ -761,6 +761,7 @@ struct SettingsView: View {
         apiKeyInput = ""
         geminiClient.apiKey = ""
         HabitManager.shared.updateAllHabits([])
+        UserDefaults.standard.removeObject(forKey: "discipline_activity_records")
         showResetDoneToast = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             showResetDoneToast = false

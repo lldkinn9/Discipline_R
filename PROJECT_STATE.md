@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.15`
+- **Version:** `v1.0.16`
 - **Last Updated:** `2026-10-30`
-- **Phase:** DASHBOARD 画面の個人版アプリ準拠 UI 刷新完了（HealthKit 食事ログ個別取得＆全指標完全統合）
+- **Phase:** CALENDAR 画面の個人版アプリ準拠 UI 刷新完了（独立スタンプアコーディオン ＆ DAY OVERVIEW 実装）
 
 ---
 
@@ -28,7 +28,7 @@
 - `Discipline_R/App/`
   - `DisciplineApp.swift`: エントリポイント、初回起動時の医療免責事項同意モーダル、5タブ管理（DASHBOARD / HABITS / CALENDAR / AI ADVISOR / SETTINGS）、ドラッグ＆タップ対応リキッドグラスTabBar
 - `Discipline_R/Models/`
-  - `ActivityRecord.swift`: 日次アクティビティモデル
+  - `ActivityRecord.swift`: カレンダー専用6大スタンプ記録モデル（`WORKOUT` / `RUNNING` / `READING` / `STUDY` / `HEALTH` / `DISCIPLINE`、Habitとは完全別管理）
   - `HabitItem.swift`: 個別習慣モデル
 - `Discipline_R/Services/`
   - `HealthKitManager.swift`: Apple HealthKit 一本化による歩数・移動距離・エクササイズ時間・ワークアウト種目履歴・消費カロリー（活動＋基礎代謝）・摂取カロリー・PFC実量・睡眠時間（重複区間マージ）・体重・体脂肪率・安静時心拍数の取得＆過去60日分の日次コレクション集計
@@ -40,7 +40,7 @@
   - `Main/MainDashboardView.swift`: 個人版アプリ準拠UI（`WEEKLY TOTAL (SUN – SAT)`、`DAILY ENERGY BREAKDOWN` 日曜〜土曜横プログレスバー、HealthKit連携 `TODAY'S MEAL LOG`、一般バランス栄養基準3カラム `TODAY'S PFC RATIO`、当日収支・歩数を含む `NUTRITION OVERVIEW`）
   - `Main/HabitTrackerSection.swift`: 21:9 フルブリード習慣カード（完了時暗転＆28日ミニヒートマップ表示）、編集モード（削除・上下並び替え）、3ステップ習慣作成ウィザード
   - `Habit/HabitTabView.swift`: HABITS専用タブ（`HABIT & DISCIPLINE` ヘッダー、28日コンパクトヒートマップ、21:9 習慣トラッカー）
-  - `Calendar/CalendarView.swift`: 6大規律スタンプ付き月間カレンダー、選択日の詳細レポート＆過去日の習慣記録修正機能
+  - `Calendar/CalendarView.swift`: 個人版アプリ準拠UI（シンプルヘッダー `CALENDAR & STAMPS`、スタンプ選択日のみアイコンを表示する月間カレンダー、デフォルト折りたたみのアコーディオン式6大スタンプ、選択日の `DAY OVERVIEW` 全指標・PFC・食事ログ・完了習慣表示）
   - `Calendar/DisciplineHeatmapView.swift`: 過去28日間（4週×7日）のコンパクト習慣達成度ヒートマップ
   - `AICoach/AICoachView.swift`: AI ADVISOR 画面（BYOKオーバーレイ、当日＋直近7日間日別推移＋過去30日トレンド＋ワークアウト・睡眠・習慣定着率＋マルチターン会話履歴による総合分析＆直接回答）
   - `AICoach/KnowledgeBase.swift`: 厚生労働省・WHO等の一般栄養基準に基づく総合分析システムプロンプト（医療用語排除・時間帯別ペース評価・過去トレンド連動・直接回答分岐）
@@ -55,6 +55,14 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.16` (2026-10-30)
+- **CALENDAR 画面の個人版アプリ準拠 UI 刷新（独立スタンプ管理 ＆ `DAY OVERVIEW` 実装）:**
+  - **個人版カレンダーUI＆仕様の完全再現 (`CalendarView.swift` / `ActivityRecord.swift` / `HealthKitManager.swift` / `SettingsView.swift`):**
+    1. **シンプルヘッダー**: 中央インラインタイトル `CALENDAR & STAMPS` と `< 2026 / 10 >` 月切替バー（前後月移動対応）および `日〜土` 曜日ヘッダーへ刷新。
+    2. **月間カレンダーグリッド**: 各日付セルはデフォルトではアイコンを一切表示せず、選択日は白丸反転バッジ（当日は白枠丸バッジ）とし、下部スタンプで押下したアイコンのみをセル下部に表示する仕様へ変更。
+    3. **アコーディオン式 `STAMPS (DAILY DISCIPLINE)`**: デフォルト折りたたみ（`一覧を展開` / `閉じる`）のアコーディオンUIとし、展開時に6種類のスタンプ（`WORKOUT` / `RUNNING` / `READING` / `STUDY` / `HEALTH` / `DISCIPLINE`）を2列グリッドで表示。**Habit（習慣）とは完全別管理**で `ActivityRecord` (`discipline_activity_records`) に独立保存。
+    4. **選択日連動 `DAY OVERVIEW (YYYY-MM-DD)`**: カレンダーで選択した日の①消費・摂取・NET BALANCE、②歩数・体重・体脂肪率、③`PFC BALANCE`、④HealthKit連携 `MEALS`（選択日の時刻別食事ログ）、⑤`COMPLETED HABITS`（その日の完了済み習慣参照リスト）を動的表示（60日以前の過去日でも `HealthKitManager.fetchDaySummary(for:)` & `fetchMealRecords(for:)` でリアルタイム取得）。
+
 ### `v1.0.15` (2026-10-30)
 - **DASHBOARD 画面の個人版アプリ準拠 UI 刷新 ＆ HealthKit 時刻別食事ログ連携の実装:**
   - **個人版ダッシュボードUI構成の完全再現 (`MainDashboardView.swift`):**

@@ -611,24 +611,32 @@ final class HealthKitManager: ObservableObject {
         healthStore.execute(query)
     }
     
-    // MARK: - 本日の食事ログ個別サンプル取得（HealthKit dietaryEnergyConsumed & PFC 紐付け）
+    // MARK: - 指定日（当日・過去日）の食事ログ個別サンプル取得（HealthKit dietaryEnergyConsumed & PFC 紐付け）
     func fetchTodayMealRecords() async {
-        async let energySamplesTask = queryTodayQuantitySamples(for: .dietaryEnergyConsumed)
-        async let proteinSamplesTask = queryTodayQuantitySamples(for: .dietaryProtein)
-        async let fatSamplesTask = queryTodayQuantitySamples(for: .dietaryFatTotal)
-        async let carbsSamplesTask = queryTodayQuantitySamples(for: .dietaryCarbohydrates)
+        let records = await fetchMealRecords(for: Date())
+        await MainActor.run {
+            self.todayMeals = records
+        }
+    }
+    
+    func fetchMealRecords(for date: Date) async -> [HealthMealRecord] {
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: date)
+        guard let endOfDay = cal.date(byAdding: .day, value: 1, to: startOfDay) else { return [] }
+        let queryEnd = cal.isDateInToday(date) ? Date() : endOfDay
+        guard queryEnd > startOfDay else { return [] }
+        
+        async let energySamplesTask = queryQuantitySamples(for: .dietaryEnergyConsumed, start: startOfDay, end: queryEnd)
+        async let proteinSamplesTask = queryQuantitySamples(for: .dietaryProtein, start: startOfDay, end: queryEnd)
+        async let fatSamplesTask = queryQuantitySamples(for: .dietaryFatTotal, start: startOfDay, end: queryEnd)
+        async let carbsSamplesTask = queryQuantitySamples(for: .dietaryCarbohydrates, start: startOfDay, end: queryEnd)
         
         let energySamples = await energySamplesTask
         var unusedProtein = await proteinSamplesTask
         var unusedFat = await fatSamplesTask
         var unusedCarbs = await carbsSamplesTask
         
-        guard !energySamples.isEmpty else {
-            await MainActor.run {
-                self.todayMeals = []
-            }
-            return
-        }
+        guard !energySamples.isEmpty else { return [] }
         
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
@@ -664,7 +672,7 @@ final class HealthKitManager: ObservableObject {
             if let name = foodMeta, !name.isEmpty {
                 menuTitle = name
             } else {
-                let hour = Calendar.current.component(.hour, from: sample.startDate)
+                let hour = cal.component(.hour, from: sample.startDate)
                 switch hour {
                 case 4..<11: menuTitle = "朝食の栄養記録"
                 case 11..<15: menuTitle = "昼食の栄養記録"
@@ -687,10 +695,61 @@ final class HealthKitManager: ObservableObject {
                 )
             )
         }
+        return records
+    }
+    
+    // カレンダーで任意の過去日を選択した際に、60日以前でもHealthKitから正確な1日分サマリーを取得する
+    func fetchDaySummary(for date: Date) async -> DailyHealthSummary {
+        let cal = Calendar.current
+        let key = dateKey(for: date)
+        if cal.isDateInToday(date) {
+            return summary(for: date)
+        }
+        
+        let startOfDay = cal.startOfDay(for: date)
+        guard let endOfDay = cal.date(byAdding: .day, value: 1, to: startOfDay),
+              startOfDay <= Date() else {
+            return DailyHealthSummary(dateString: key)
+        }
+        
+        async let stepsVal = queryDaySum(for: .stepCount, unit: .count(), start: startOfDay, end: endOfDay)
+        async let activeVal = queryDaySum(for: .activeEnergyBurned, unit: .kilocalorie(), start: startOfDay, end: endOfDay)
+        async let basalVal = queryDaySum(for: .basalEnergyBurned, unit: .kilocalorie(), start: startOfDay, end: endOfDay)
+        async let intakeVal = queryDaySum(for: .dietaryEnergyConsumed, unit: .kilocalorie(), start: startOfDay, end: endOfDay)
+        async let pVal = queryDaySum(for: .dietaryProtein, unit: .gram(), start: startOfDay, end: endOfDay)
+        async let fVal = queryDaySum(for: .dietaryFatTotal, unit: .gram(), start: startOfDay, end: endOfDay)
+        async let cVal = queryDaySum(for: .dietaryCarbohydrates, unit: .gram(), start: startOfDay, end: endOfDay)
+        async let weightVal = queryDayAverage(for: .bodyMass, unit: .gramUnit(with: .kilo), start: startOfDay, end: endOfDay)
+        async let fatPctVal = queryDayAverage(for: .bodyFatPercentage, unit: .percent(), start: startOfDay, end: endOfDay)
+        
+        let fetched = DailyHealthSummary(
+            dateString: key,
+            steps: Int((await stepsVal).rounded()),
+            activeBurned: await activeVal,
+            basalBurned: await basalVal,
+            intakeCalories: await intakeVal,
+            protein: await pVal,
+            fat: await fVal,
+            carbs: await cVal,
+            weight: await weightVal,
+            bodyFatPercentage: (await fatPctVal) * 100.0
+        )
         
         await MainActor.run {
-            self.todayMeals = records
+            var merged = self.dailySummaries[key] ?? DailyHealthSummary(dateString: key)
+            merged.steps = fetched.steps
+            merged.activeBurned = fetched.activeBurned
+            merged.basalBurned = fetched.basalBurned
+            merged.intakeCalories = fetched.intakeCalories
+            merged.protein = fetched.protein
+            merged.fat = fetched.fat
+            merged.carbs = fetched.carbs
+            if fetched.weight > 0 { merged.weight = fetched.weight }
+            if fetched.bodyFatPercentage > 0 { merged.bodyFatPercentage = fetched.bodyFatPercentage }
+            self.dailySummaries[key] = merged
         }
+        
+        return dailySummaries[key] ?? fetched
     }
     
     private static func consumeMatchingMacro(
@@ -726,16 +785,43 @@ final class HealthKitManager: ObservableObject {
         return 0.0
     }
     
-    private func queryTodayQuantitySamples(for identifier: HKQuantityTypeIdentifier) async -> [HKQuantitySample] {
-        guard let sampleType = HKSampleType.quantityType(forIdentifier: identifier) else { return [] }
-        let now = Date()
-        let startOfDay = Calendar.current.startOfDay(for: now)
-        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
+    private func queryQuantitySamples(for identifier: HKQuantityTypeIdentifier, start: Date, end: Date) async -> [HKQuantitySample] {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let sampleType = HKSampleType.quantityType(forIdentifier: identifier) else { return [] }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: 50, sortDescriptors: [sortDescriptor]) { _, samples, _ in
                 continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+            }
+            healthStore.execute(query)
+        }
+    }
+    
+    private func queryDaySum(for identifier: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date) async -> Double {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else { return 0.0 }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, _ in
+                let val = result?.sumQuantity()?.doubleValue(for: unit) ?? 0.0
+                continuation.resume(returning: val)
+            }
+            healthStore.execute(query)
+        }
+    }
+    
+    private func queryDayAverage(for identifier: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date) async -> Double {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else { return 0.0 }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: .discreteAverage) { _, result, _ in
+                let val = result?.averageQuantity()?.doubleValue(for: unit) ?? 0.0
+                continuation.resume(returning: val)
             }
             healthStore.execute(query)
         }
