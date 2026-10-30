@@ -729,7 +729,7 @@ struct SettingsView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12))
                             .foregroundColor(Color(white: 0.7))
-                        Text(showResetDoneToast ? "端末内データをすべて初期化しました ✓" : "アプリ内の保存データ（習慣・APIキー）を初期化")
+                        Text(showResetDoneToast ? "端末内データをすべて初期化しました ✓" : "アプリ内の保存データ（習慣・スタンプ・APIキー）を初期化")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(Color(white: 0.7))
                         Spacer()
@@ -743,7 +743,7 @@ struct SettingsView: View {
                         resetAllLocalData()
                     }
                 } message: {
-                    Text("アプリ内に保存されている習慣リスト・達成履歴・APIキーをすべて消去し、初期状態に戻します。（Appleヘルスケア内のデータは消去されません）")
+                    Text("アプリ内に保存されている習慣リスト・達成履歴・カレンダースタンプ・APIキーをすべて消去し、初期状態に戻します。（Appleヘルスケア内のデータは消去されません）")
                 }
             }
             .padding(18)
@@ -788,8 +788,8 @@ struct PrivacyPolicySheetView: View {
                     )
                     
                     policyCard(
-                        title: "3. 広告表示および Pro版アップデート（App内課金）について",
-                        bodyText: "無料版では画面下部にバナー広告が表示されます。設定画面より「Discipline Pro（¥500・買い切り）」へアップデートすることで、バナー広告を永久に非表示にすることができます。決済処理は Apple の StoreKit（App Store決済システム）を通じて安全に行われ、開発者がクレジットカード等の決済情報を直接取得・保持することはありません。"
+                        title: "3. 広告表示（Google AdMob）および Pro版アップデート（App内課金）について",
+                        bodyText: "無料版では Google AdMob SDK による非パーソナライズド広告（npa=1）として画面下部にバナー広告が表示されます。Apple HealthKit から取得した健康データが広告配信・ターゲティング・トラッキングに利用されることは一切ありません。\n\n設定画面より「Discipline Pro（¥500・買い切り）」へアップデートすることで、バナー広告を永久に非表示にすることができます。決済処理は Apple の StoreKit（App Store決済システム）を通じて安全に行われ、開発者がクレジットカード等の決済情報を直接取得・保持することはありません。"
                     )
                     
                     policyCard(
