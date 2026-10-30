@@ -12,8 +12,17 @@ struct MainDashboardView: View {
     }()
     
     private var appVersionLabel: String {
-        let shortVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        return (shortVer.hasPrefix("v") || shortVer.hasPrefix("V")) ? shortVer : "v\(shortVer)"
+        var shortVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if shortVer.hasPrefix("v") || shortVer.hasPrefix("V") {
+            shortVer.removeFirst()
+        }
+        // App Store Connect 表記（例: 1.0）に統一するため、"1.0.0" のような末尾 ".0"（3階層目）を正規化
+        let parts = shortVer.split(separator: ".")
+        if parts.count >= 3 && parts[2] == "0" {
+            shortVer = "\(parts[0]).\(parts[1])"
+        }
+        return "v\(shortVer)"
     }
     
     // 今週（日曜〜土曜）の7日間データ配列
