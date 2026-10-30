@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.16`
+- **Version:** `v1.0.17`
 - **Last Updated:** `2026-10-30`
-- **Phase:** CALENDAR 画面の個人版アプリ準拠 UI 刷新完了（独立スタンプアコーディオン ＆ DAY OVERVIEW 実装）
+- **Phase:** CALENDAR 日付セル内のスタンプアイコン `3 × 2`（2段）グリッド表示対応完了
 
 ---
 
@@ -55,6 +55,13 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.17` (2026-10-30)
+- **CALENDAR 日付セル内スタンプの `3 × 2`（2段）グリッド表示対応:**
+  - **スタンプ数に応じたセル内レイアウト最適化 (`CalendarView.swift`):**
+    - `0` 個選択時：何も表示しない（空領域）。
+    - `1〜3` 個選択時：1列（横1段）表示。
+    - `4〜6` 個選択時：横1列への縮小詰め込みを廃止し、`3 × 2`（上段3個＋下段最大3個の2段グリッド）で視認性を保ったまま整列表示する `stampIconsGrid(activeIcons:isSelected:)` を実装（日付セル高さを `54pt` → `58pt` へ調整し、1段時・2段時ともに1段目の縦位置と余白がズレないよう統一）。
+
 ### `v1.0.16` (2026-10-30)
 - **CALENDAR 画面の個人版アプリ準拠 UI 刷新（独立スタンプ管理 ＆ `DAY OVERVIEW` 実装）:**
   - **個人版カレンダーUI＆仕様の完全再現 (`CalendarView.swift` / `ActivityRecord.swift` / `HealthKitManager.swift` / `SettingsView.swift`):**

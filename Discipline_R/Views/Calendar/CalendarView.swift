@@ -92,7 +92,7 @@ struct CalendarView: View {
                                     dayCell(for: date)
                                 } else {
                                     Color.clear
-                                        .frame(height: 54)
+                                        .frame(height: 58)
                                 }
                             }
                         }
@@ -139,7 +139,7 @@ struct CalendarView: View {
             HapticManager.shared.impact(style: .rigid)
             selectedDate = date
         }) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: 13, weight: isSelected ? .black : (isToday ? .bold : .medium), design: .monospaced))
                     .foregroundColor(isSelected ? .black : (isToday ? .white : .gray))
@@ -156,21 +156,58 @@ struct CalendarView: View {
                         }
                     )
                 
-                HStack(spacing: activeIcons.count > 4 ? 1.5 : 2.5) {
-                    ForEach(activeIcons, id: \.self) { iconName in
-                        Image(systemName: iconName)
-                            .font(.system(size: activeIcons.count > 4 ? 5.5 : 7))
-                            .foregroundColor(isSelected ? .white : .white.opacity(0.85))
-                    }
-                }
-                .frame(height: 10)
+                stampIconsGrid(activeIcons: activeIcons, isSelected: isSelected)
+                    .frame(height: 18, alignment: .top)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 58)
             .background(Color.white.opacity(0.04))
             .cornerRadius(4)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+    
+    // MARK: - 日付セル内スタンプ表示（1〜3個は1段、4個以上は3×2の2段グリッド表示）
+    @ViewBuilder
+    private func stampIconsGrid(activeIcons: [String], isSelected: Bool) -> some View {
+        let iconColor = isSelected ? Color.white : Color.white.opacity(0.85)
+        if activeIcons.isEmpty {
+            Color.clear
+        } else if activeIcons.count <= 3 {
+            HStack(spacing: 3) {
+                ForEach(activeIcons, id: \.self) { iconName in
+                    Image(systemName: iconName)
+                        .font(.system(size: 7))
+                        .foregroundColor(iconColor)
+                        .frame(width: 9, height: 8)
+                }
+            }
+        } else {
+            VStack(spacing: 2) {
+                HStack(spacing: 3) {
+                    ForEach(0..<3, id: \.self) { col in
+                        Image(systemName: activeIcons[col])
+                            .font(.system(size: 7))
+                            .foregroundColor(iconColor)
+                            .frame(width: 9, height: 8)
+                    }
+                }
+                HStack(spacing: 3) {
+                    ForEach(0..<3, id: \.self) { col in
+                        let index = 3 + col
+                        if index < activeIcons.count {
+                            Image(systemName: activeIcons[index])
+                                .font(.system(size: 7))
+                                .foregroundColor(iconColor)
+                                .frame(width: 9, height: 8)
+                        } else {
+                            Color.clear
+                                .frame(width: 9, height: 8)
+                        }
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - STAMPS アコーディオンセクション（Habitとは別管理）
