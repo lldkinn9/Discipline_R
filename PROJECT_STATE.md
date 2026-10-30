@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.18`
+- **Version:** `v1.0` (`Build 1` — App Store Connect 完全同期)
 - **Last Updated:** `2026-10-30`
-- **Phase:** App Store 提出直前の最終パッケージング完了（`PrivacyInfo.xcprivacy`・`app-ads.txt`・`MARKETING_VERSION = 1.0.0` 整備）
+- **Phase:** App Store 初回リリース `v1.0 (Build 1)` 最終パッケージング完了（`PrivacyInfo.xcprivacy`・`app-ads.txt` 整備済み）
 
 ---
 
@@ -55,14 +55,15 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
-### `v1.0.18` (2026-10-30)
-- **App Store Connect アップロード＆審査提出に向けた最終パッケージング整備:**
+### `v1.0 (Build 1)` — 初回リリース版確定 (2026-10-30)
+- **App Store Connect とのバージョン番号完全同期 (`v1.0` / Build `1`):**
+  - 開発フェーズ中の内部イテレーション番号（`v1.0.1`〜`v1.0.18`）を統合し、App Store Connect の初回登録バージョン **`1.0` (`Build 1`)** に完全同期（`project.pbxproj` の両ターゲット `MARKETING_VERSION = 1.0` / `CURRENT_PROJECT_VERSION = 1`、`MainDashboardView.swift` のヘッダーバッジ表示 `v1.0`、`GEMINI.md` のバージョン同期ルールを更新）。
+- **App Store Connect アップロード＆審査提出に向けた最終パッケージング整備 (旧内部番号 `v1.0.18` 含む):**
   - **Apple 必須 Privacy Manifest の追加 (`Discipline_R/PrivacyInfo.xcprivacy` / `DisciplineWidget/PrivacyInfo.xcprivacy`):**
     - App Store Connect バイナリ検証エラー（`ITMS-91053: Missing API declaration`）を防止するため、メインアプリおよび Widget Extension の両ターゲットに `NSPrivacyAccessedAPICategoryUserDefaults`（理由コード `CA92.1`・`1C8F.1`）および `NSPrivacyTracking = false` を宣言した `PrivacyInfo.xcprivacy` を配置。
-  - **AdMob 認証ファイル・公開Webドキュメント・バージョン番号の最終同期 (`docs/app-ads.txt`, `docs/privacy.html`, `docs/index.html`, `SettingsView.swift`, `project.pbxproj`):**
+  - **AdMob 認証ファイル・公開Webドキュメントの最終同期 (`docs/app-ads.txt`, `docs/privacy.html`, `docs/index.html`, `SettingsView.swift`):**
     - Google AdMob 認証用 `docs/app-ads.txt`（`pub-1148610655574304`）を追加。
     - アプリ内および GitHub Pages 公開用のプライバシーポリシー・サポートページに Google AdMob 非パーソナライズド広告（`npa=1` / HealthKitデータの広告利用一切なし）の明記と最新UI内容を反映。
-    - `project.pbxproj` の両ターゲットの `MARKETING_VERSION` を `1.0.0`（Build `1`）に統一。
 
 ### `v1.0.17` (2026-10-30)
 - **CALENDAR 日付セル内スタンプの `3 × 2`（2段）グリッド表示対応:**

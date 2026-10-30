@@ -12,11 +12,8 @@ struct MainDashboardView: View {
     }()
     
     private var appVersionLabel: String {
-        let shortVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        if shortVer == "1.0" {
-            return "v1.0.0"
-        }
-        return shortVer.hasPrefix("v") ? shortVer : "v\(shortVer)"
+        let shortVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return (shortVer.hasPrefix("v") || shortVer.hasPrefix("V")) ? shortVer : "v\(shortVer)"
     }
     
     // 今週（日曜〜土曜）の7日間データ配列
