@@ -3,7 +3,7 @@
 ## 現在のバージョン
 - **Version:** `v1.0` (`Build 1` — App Store Connect 完全同期)
 - **Last Updated:** `2026-10-30`
-- **Phase:** App Store 初回リリース `v1.0 (Build 1)` 最終パッケージング完了（`PrivacyInfo.xcprivacy`・`app-ads.txt` 整備済み）
+- **Phase:** App Store Review 初回審査提出完了・審査待ち（`iOSアプリ 1.0 (1)` ＋ `Discipline Pro` 同時提出済み）
 
 ---
 
