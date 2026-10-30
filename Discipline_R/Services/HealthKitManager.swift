@@ -33,6 +33,18 @@ struct WorkoutRecord: Identifiable {
     let energyBurnedKcal: Int   // アクティブ消費カロリー（kcal）
 }
 
+// MARK: - 本日の食事ログ構造体（HealthKit 個別サンプル表示用）
+struct HealthMealRecord: Identifiable {
+    let id = UUID()
+    let formattedTime: String   // "HH:mm"
+    let menuName: String        // 食品名（HKMetadataKeyFoodType または時間帯別ラベル）
+    let calories: Double        // kcal
+    let protein: Double         // g
+    let fat: Double             // g
+    let carbs: Double           // g
+    let sourceTag: String       // 記録元アプリ名等
+}
+
 final class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
     private let healthStore = HKHealthStore()
@@ -65,6 +77,9 @@ final class HealthKitManager: ObservableObject {
     
     // 直近30日間のワークアウト履歴（新しい順）
     @Published var recentWorkouts: [WorkoutRecord] = []
+    
+    // 本日の食事記録一覧（HealthKit サンプル・新しい順）
+    @Published var todayMeals: [HealthMealRecord] = []
     
     var todayTotalBurnedCalories: Double {
         return todayActiveCalories + todayBasalCalories
@@ -206,6 +221,9 @@ final class HealthKitManager: ObservableObject {
         }
         fetchLatestSample(for: .restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute())) { [weak self] val in
             if val > 0 { self?.latestRestingHeartRate = val }
+        }
+        Task { [weak self] in
+            await self?.fetchTodayMealRecords()
         }
     }
     
@@ -591,5 +609,135 @@ final class HealthKitManager: ObservableObject {
             }
         }
         healthStore.execute(query)
+    }
+    
+    // MARK: - 本日の食事ログ個別サンプル取得（HealthKit dietaryEnergyConsumed & PFC 紐付け）
+    func fetchTodayMealRecords() async {
+        async let energySamplesTask = queryTodayQuantitySamples(for: .dietaryEnergyConsumed)
+        async let proteinSamplesTask = queryTodayQuantitySamples(for: .dietaryProtein)
+        async let fatSamplesTask = queryTodayQuantitySamples(for: .dietaryFatTotal)
+        async let carbsSamplesTask = queryTodayQuantitySamples(for: .dietaryCarbohydrates)
+        
+        let energySamples = await energySamplesTask
+        var unusedProtein = await proteinSamplesTask
+        var unusedFat = await fatSamplesTask
+        var unusedCarbs = await carbsSamplesTask
+        
+        guard !energySamples.isEmpty else {
+            await MainActor.run {
+                self.todayMeals = []
+            }
+            return
+        }
+        
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        
+        var records: [HealthMealRecord] = []
+        for sample in energySamples {
+            let kcal = sample.quantity.doubleValue(for: .kilocalorie())
+            guard kcal > 0 else { continue }
+            
+            let foodMeta = (sample.metadata?[HKMetadataKeyFoodType] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            let pVal = Self.consumeMatchingMacro(
+                targetDate: sample.startDate,
+                foodMeta: foodMeta,
+                unit: .gram(),
+                pool: &unusedProtein
+            )
+            let fVal = Self.consumeMatchingMacro(
+                targetDate: sample.startDate,
+                foodMeta: foodMeta,
+                unit: .gram(),
+                pool: &unusedFat
+            )
+            let cVal = Self.consumeMatchingMacro(
+                targetDate: sample.startDate,
+                foodMeta: foodMeta,
+                unit: .gram(),
+                pool: &unusedCarbs
+            )
+            
+            let menuTitle: String
+            if let name = foodMeta, !name.isEmpty {
+                menuTitle = name
+            } else {
+                let hour = Calendar.current.component(.hour, from: sample.startDate)
+                switch hour {
+                case 4..<11: menuTitle = "朝食の栄養記録"
+                case 11..<15: menuTitle = "昼食の栄養記録"
+                case 15..<18: menuTitle = "間食の栄養記録"
+                case 18..<22: menuTitle = "夕食の栄養記録"
+                default: menuTitle = "夜食・栄養記録"
+                }
+            }
+            
+            let sourceName = sample.sourceRevision.source.name
+            records.append(
+                HealthMealRecord(
+                    formattedTime: timeFormatter.string(from: sample.startDate),
+                    menuName: menuTitle,
+                    calories: kcal,
+                    protein: pVal,
+                    fat: fVal,
+                    carbs: cVal,
+                    sourceTag: sourceName
+                )
+            )
+        }
+        
+        await MainActor.run {
+            self.todayMeals = records
+        }
+    }
+    
+    private static func consumeMatchingMacro(
+        targetDate: Date,
+        foodMeta: String?,
+        unit: HKUnit,
+        pool: inout [HKQuantitySample]
+    ) -> Double {
+        if let foodMeta = foodMeta, !foodMeta.isEmpty {
+            if let exactIdx = pool.firstIndex(where: {
+                ($0.metadata?[HKMetadataKeyFoodType] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) == foodMeta &&
+                abs($0.startDate.timeIntervalSince(targetDate)) <= 180
+            }) {
+                let matched = pool.remove(at: exactIdx)
+                return matched.quantity.doubleValue(for: unit)
+            }
+        }
+        
+        // 同一時刻（±120秒以内）で最も近いサンプルを1対1で紐付け
+        var bestIdx: Int? = nil
+        var bestDiff: TimeInterval = 121
+        for (idx, candidate) in pool.enumerated() {
+            let diff = abs(candidate.startDate.timeIntervalSince(targetDate))
+            if diff <= 120 && diff < bestDiff {
+                bestDiff = diff
+                bestIdx = idx
+            }
+        }
+        if let idx = bestIdx {
+            let matched = pool.remove(at: idx)
+            return matched.quantity.doubleValue(for: unit)
+        }
+        return 0.0
+    }
+    
+    private func queryTodayQuantitySamples(for identifier: HKQuantityTypeIdentifier) async -> [HKQuantitySample] {
+        guard let sampleType = HKSampleType.quantityType(forIdentifier: identifier) else { return [] }
+        let now = Date()
+        let startOfDay = Calendar.current.startOfDay(for: now)
+        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: 50, sortDescriptors: [sortDescriptor]) { _, samples, _ in
+                continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+            }
+            healthStore.execute(query)
+        }
     }
 }

@@ -1,9 +1,9 @@
 # Discipline (Release Edition) - プロジェクトステータス管理
 
 ## 現在のバージョン
-- **Version:** `v1.0.14`
-- **Last Updated:** `2026-10-29`
-- **Phase:** AI ADVISOR の過去日・睡眠・ワークアウト・習慣履歴横断型「総合アドバイス」強化完了
+- **Version:** `v1.0.15`
+- **Last Updated:** `2026-10-30`
+- **Phase:** DASHBOARD 画面の個人版アプリ準拠 UI 刷新完了（HealthKit 食事ログ個別取得＆全指標完全統合）
 
 ---
 
@@ -37,7 +37,7 @@
   - `HapticManager.swift`: アプリ全体の触覚フィードバック管理
   - `WidgetDataSharer.swift`: 本体アプリから App Group 経由で Widget へ最新データを即時同期
 - `Discipline_R/Views/`
-  - `Main/MainDashboardView.swift`: カロリー収支、月〜日の曜日別対比バーチャート、一般バランス栄養基準（P 13-20%, F 20-30%, C 50-65%）のPFCバランス、Empty State 案内バナー
+  - `Main/MainDashboardView.swift`: 個人版アプリ準拠UI（`WEEKLY TOTAL (SUN – SAT)`、`DAILY ENERGY BREAKDOWN` 日曜〜土曜横プログレスバー、HealthKit連携 `TODAY'S MEAL LOG`、一般バランス栄養基準3カラム `TODAY'S PFC RATIO`、当日収支・歩数を含む `NUTRITION OVERVIEW`）
   - `Main/HabitTrackerSection.swift`: 21:9 フルブリード習慣カード（完了時暗転＆28日ミニヒートマップ表示）、編集モード（削除・上下並び替え）、3ステップ習慣作成ウィザード
   - `Habit/HabitTabView.swift`: HABITS専用タブ（`HABIT & DISCIPLINE` ヘッダー、28日コンパクトヒートマップ、21:9 習慣トラッカー）
   - `Calendar/CalendarView.swift`: 6大規律スタンプ付き月間カレンダー、選択日の詳細レポート＆過去日の習慣記録修正機能
@@ -55,6 +55,18 @@
 ---
 
 ## 4. 更新履歴 (Changelog)
+### `v1.0.15` (2026-10-30)
+- **DASHBOARD 画面の個人版アプリ準拠 UI 刷新 ＆ HealthKit 時刻別食事ログ連携の実装:**
+  - **個人版ダッシュボードUI構成の完全再現 (`MainDashboardView.swift`):**
+    1. ヘッダーを `DISCIPLINE` / `DAILY OPTIMIZATION & RIGOR` ＋右上のモノスペース枠線バージョンバッジ（`v1.0.0`）へ刷新。
+    2. **`WEEKLY TOTAL (SUN – SAT)`**: 今週（日曜〜土曜）の合計摂取（`INTAKE`）・合計消費（`BURNED`）・週間収支（`NET BALANCE`）をカンマ区切り大型モノスペース数値で3カラム表示。
+    3. **`DAILY ENERGY BREAKDOWN`**: 日曜（`日 (SUN)`）〜土曜（`土 (SAT)`）の7行構成とし、当日ドット（`●`）・`IN / OUT` 数値・白プログレスバーによる対比UIを実装。
+    4. **`TODAY'S MEAL LOG`**: Apple HealthKit の当日栄養サンプルから個別食事カード（時刻バッジ・食品名/時間帯ラベル・kcal・`P / F / C` ピル・記録元タグ）を一覧表示し、0件時のEmpty State案内および手動同期ボタン（`↻`）を実装。
+    5. **`TODAY'S PFC RATIO (BALANCE TARGET)`**: 個人版と同じ3カラムボックスUI（`PROTEIN (P)` / `FAT (F)` / `CARBS (C)` のグラム数・比率%・一般バランス目標 `13〜20%` / `20〜30%` / `50〜65%`）へ刷新。
+    6. **`NUTRITION OVERVIEW`**: 個人版と同じリスト行デザインで、本日の摂取カロリー・消費カロリー・本日の収支・PFC実量（%）・本日の歩数を網羅し、既存機能を一切損なわない構成を実現。
+  - **HealthKit 個別食事サンプル取得の追加 (`HealthKitManager.swift`):**
+    - 当日の `dietaryEnergyConsumed` サンプルと同時刻（または同一 `HKMetadataKeyFoodType`）のタンパク質・脂質・炭水化物サンプルを1対1で安全に紐付ける `fetchTodayMealRecords()` (`HealthMealRecord`) を実装。
+
 ### `v1.0.14` (2026-10-29)
 - **AI ADVISOR の過去日・睡眠・ワークアウト・習慣履歴を横断した「総合アドバイス機能」へのフル強化:**
   - **HealthKit 読み取り＆履歴集計の大幅拡張 (`HealthKitManager.swift`):**
